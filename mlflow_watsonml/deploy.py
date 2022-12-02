@@ -9,13 +9,13 @@ import pandas as pd
 from ibm_watson_machine_learning.client import APIClient
 from mlflow.deployments import BaseDeploymentClient
 from mlflow.exceptions import MlflowException
-from mlflow.protos.databricks_pb2 import (ENDPOINT_NOT_FOUND,
-                                          INVALID_PARAMETER_VALUE)
+from mlflow.protos.databricks_pb2 import ENDPOINT_NOT_FOUND, INVALID_PARAMETER_VALUE
 
 from mlflow_watsonml.config import Config
 
 LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(logging.INFO)
+
 
 def target_help():
     # TODO: Improve
@@ -43,7 +43,7 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
             wml_credentials=self.wml_config["wml_credentials"],
             deployment_space_name=self.wml_config["deployment_space_name"],
         )
-    
+
     def connect(self, wml_credentials: Dict, deployment_space_name: str) -> None:
         """Connect to WML APIClient and set the default deployment space
 
@@ -74,25 +74,87 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
                 f"{e}",
                 error_code=ENDPOINT_NOT_FOUND,
             )
-    
-    def create_deployment(self, name, model_uri, flavor=None, config=None, endpoint=None):
+
+    def create_deployment(
+        self, name, model_uri, flavor=None, config=None, endpoint=None
+    ):
         return super().create_deployment(name, model_uri, flavor, config, endpoint)
-    
+
     def delete_deployment(self, name, config=None, endpoint=None):
         return super().delete_deployment(name, config, endpoint)
-    
-    def update_deployment(self, name, model_uri=None, flavor=None, config=None, endpoint=None):
+
+    def update_deployment(
+        self, name, model_uri=None, flavor=None, config=None, endpoint=None
+    ):
         return super().update_deployment(name, model_uri, flavor, config, endpoint)
-    
-    def list_deployments(self, endpoint=None):
-        return super().list_deployments(endpoint)
-    
-    def get_deployment(self, name, endpoint=None):
-        return super().get_deployment(name, endpoint)
-    
+
+    def list_deployments(self) -> List[Dict]:
+        """_summary_
+
+        Returns
+        -------
+        List[Dict]
+            _description_
+        """
+        deployments = self.get_wml_client().deployments.get_details(get_all=True)[
+            "resources"
+        ]
+
+        # `name` is a required key in each deployment
+        for deployment in deployments:
+            deployment["name"] = deployment["entity"]["name"]
+
+        return deployments
+
+    def list_models(self) -> List[Dict]:
+        """_summary_
+
+        Returns
+        -------
+        List[Dict]
+            _description_
+        """
+        models = self.get_wml_client().repository.get_model_details(get_all=True)[
+            "resources"
+        ]
+
+        for model in models:
+            model["name"] = model["metadata"]["name"]
+
+        return models
+
+    def get_deployment(self, name: str) -> Dict:
+        """_summary_
+
+        Parameters
+        ----------
+        name : str
+            deployment name
+
+        Returns
+        -------
+        Dict
+            deployment details
+
+        Raises
+        ------
+        MlflowException
+            _description_
+        """
+        deployments = self.list_deployments()
+
+        try:
+            return next(item for item in deployments if item["entity"]["name"] == name)
+
+        except StopIteration as _:
+            raise MlflowException(
+                message=f"no deployment by the name {name} exists",
+                error_code=ENDPOINT_NOT_FOUND,
+            )
+
     def predict(self, deployment_name=None, inputs=None, endpoint=None):
         return super().predict(deployment_name, inputs, endpoint)
-    
+
     def get_wml_client(self) -> APIClient:
         """_summary_
 
@@ -102,7 +164,7 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
             _description_
         """
         return self._wml_client
-    
+
     def _get_space_id_from_space_name(self, space_name: str) -> str:
         """Returns space ID from the space name
 
@@ -133,4 +195,3 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
             raise MlflowException(
                 message=f"space {space_name} not found", error_code=ENDPOINT_NOT_FOUND
             )
-    

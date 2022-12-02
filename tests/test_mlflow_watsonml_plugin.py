@@ -28,6 +28,9 @@ class TestAssetHealth(unittest.TestCase):
         test_class = self.__class__
 
         self.assertEqual(test_class.const, 1)
+        import sklearn
+
+        print(sklearn.__version__)
 
     def test_mlflow_wml_plugin_import(self):
         """Test if able to get WatsonMLDeployment plugin from mlflow"""
@@ -81,7 +84,8 @@ class TestAssetHealth(unittest.TestCase):
         from sklearn.datasets import load_iris
         from sklearn.linear_model import LogisticRegression
 
-        from mlflow_watsonml.utils import get_model_id_from_model_details, store_model
+        from mlflow_watsonml.utils import get_model_id_from_model_details
+        from mlflow_watsonml.wml import store_model
 
         plugin = self.__class__.plugin
         iris = load_iris()
@@ -124,3 +128,60 @@ class TestAssetHealth(unittest.TestCase):
         finally:
             client.repository.delete(model_id)
             shutil.rmtree(model_path)
+
+    def test_mlflow_wml_deploy_model(self):
+        from sklearn.datasets import load_iris
+        from sklearn.linear_model import LogisticRegression
+
+        from mlflow_watsonml.utils import (
+            get_deployment_id_from_deployment_details,
+            get_model_id_from_model_details,
+        )
+        from mlflow_watsonml.wml import deploy_model, store_model
+
+        plugin = self.__class__.plugin
+        iris = load_iris()
+        X = iris.data[:, :2]  # we only take the first two features.
+        y = iris.target
+        linear_lr = LogisticRegression()
+        linear_lr.fit(X, y)
+
+        client = plugin.get_wml_client()
+
+        software_spec_uid = client.software_specifications.get_uid_by_name(
+            "runtime-22.1-py3.9"
+        )
+
+        try:
+
+            model_details = store_model(
+                client=client,
+                model_object=linear_lr,
+                software_spec_uid=software_spec_uid,
+                name="test",
+                model_description="some vague explanation",
+                model_type="scikit-learn_1.0",
+            )
+
+            model_id = get_model_id_from_model_details(
+                client=client, model_details=model_details
+            )
+
+            deployment_details = deploy_model(
+                client=client,
+                name="test",
+                model_id=model_id,
+            )
+
+            deployment_id = get_deployment_id_from_deployment_details(
+                deployment_details=deployment_details
+            )
+
+            self.assertIsInstance(deployment_details, dict)
+            print(deployment_details)
+            self.assertIsInstance(deployment_id, str)
+            print(deployment_id)
+
+        finally:
+            client.deployments.delete(deployment_id)
+            client.repository.delete(model_id)

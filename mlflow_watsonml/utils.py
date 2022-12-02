@@ -4,62 +4,80 @@ from ibm_watson_machine_learning.client import APIClient
 from mlflow.exceptions import MlflowException
 
 
-def store_model(
-    client: APIClient,
-    model_object: Any,
-    software_spec_uid: str,
-    name: str,
-    model_description: Dict,
-    model_type: str,
-) -> Dict:
-    """_summary_
+def get_deployment_id_from_deployment_name(self, deployment_name: str) -> str:
+    """Returns deployment ID from deployment name
 
     Parameters
     ----------
-    client : APIClient
-        _description_
-    model_object : Any
-        _description_
-    software_spec_uid : str
-        _description_
-    name : str
-        _description_
-    model_description : Dict
-        _description_
-    model_type : str
-        _description_
+    deployment_name : str
+        deployment name
 
     Returns
     -------
-    Dict
-        _description_
+    str
+        deployment id
+    """
+    return self.get_deployment(name=deployment_name)["metadata"]["id"]
+
+
+def get_model_id_from_model_name(self, model_name: str) -> str:
+    """Returns model ID from model name
+
+    Parameters
+    ----------
+    model_name : str
+        model name
+
+    Returns
+    -------
+    str
+        model id
 
     Raises
     ------
     MlflowException
         _description_
     """
-    model_props = {
-        client.repository.ModelMetaNames.NAME: name,
-        client.repository.ModelMetaNames.DESCRIPTION: model_description,
-        client.repository.ModelMetaNames.SOFTWARE_SPEC_UID: software_spec_uid,
-        client.repository.ModelMetaNames.TYPE: model_type,
-    }
+    models = self.list_models()
 
     try:
-        model_details = client.repository.store_model(
-            model=model_object,
-            meta_props=model_props,
-            training_data=None,
-            training_target=None,
-            feature_names=None,
-            label_column_names=None,
+        return next(item for item in models if item["name"] == model_name)["metadata"][
+            "id"
+        ]
+    except StopIteration as _:
+        raise MlflowException(
+            message=f"model {model_name} not found", error_code=ENDPOINT_NOT_FOUND
         )
 
-    except Exception as e:
-        raise MlflowException(e)
 
-    return model_details
+def get_space_id_from_space_name(self, space_name: str) -> str:
+    """Returns space ID from the space name
+
+    Parameters
+    ----------
+    space_name : str
+        space name
+
+    Returns
+    -------
+    str
+        space id
+
+    Raises
+    ------
+    MlflowException
+        _description_
+    """
+    spaces = self.get_wml_client().spaces.get_details()
+
+    try:
+        return next(
+            item for item in spaces["resources"] if item["entity"]["name"] == space_name
+        )["metadata"]["id"]
+    except StopIteration as _:
+        raise MlflowException(
+            message=f"space {space_name} not found", error_code=ENDPOINT_NOT_FOUND
+        )
 
 
 def get_model_id_from_model_details(client: APIClient, model_details: Dict) -> str:
@@ -77,3 +95,24 @@ def get_model_id_from_model_details(client: APIClient, model_details: Dict) -> s
     """
     model_id = client.repository.get_model_id(model_details=model_details)
     return model_id
+
+
+def get_deployment_id_from_deployment_details(
+    client: APIClient, deployment_details: Dict
+) -> str:
+    """_summary_
+
+    Parameters
+    ----------
+    client : APIClient
+        _description_
+    deployment_details : Dict
+        _description_
+
+    Returns
+    -------
+    str
+        _description_
+    """
+    deployment_id = client.deployments.get_id(deployment_details=deployment_details)
+    return deployment_id
