@@ -1,7 +1,12 @@
+import os
+import shutil
 import unittest
 
 import mlflow
+from ibm_watson_machine_learning.client import APIClient
 from mlflow.deployments import get_deploy_client
+
+from mlflow_watsonml.deploy import WatsonMLDeploymentClient
 
 
 class TestAssetHealth(unittest.TestCase):
@@ -11,6 +16,7 @@ class TestAssetHealth(unittest.TestCase):
     def setUpClass(cls):
         """Setup method: Called once before test-cases execution"""
         cls.const = 1
+        cls.plugin: WatsonMLDeploymentClient = get_deploy_client("watsonml")
 
     @classmethod
     def tearDownClass(cls):
@@ -25,13 +31,96 @@ class TestAssetHealth(unittest.TestCase):
 
     def test_mlflow_wml_plugin_import(self):
         """Test if able to get WatsonMLDeployment plugin from mlflow"""
-        from ibm_watson_machine_learning.client import APIClient
 
-        from mlflow_watsonml.deploy import WatsonMLDeploymentClient
-
-        plugin = get_deploy_client("watsonml")
+        plugin = self.__class__.plugin
         self.assertIsInstance(plugin, WatsonMLDeploymentClient)
-        self.assertIsInstance(plugin._wml_client, APIClient)
+        self.assertIsInstance(plugin.get_wml_client(), APIClient)
 
+    def test_sklearn_wml_store_model(self):
+        from sklearn.datasets import load_iris
+        from sklearn.linear_model import LogisticRegression
 
-        
+        from mlflow_watsonml.utils import get_model_id_from_model_details, store_model
+
+        plugin = self.__class__.plugin
+        iris = load_iris()
+        X = iris.data[:, :2]  # we only take the first two features.
+        y = iris.target
+        linear_lr = LogisticRegression()
+        linear_lr.fit(X, y)
+
+        client = plugin.get_wml_client()
+
+        software_spec_uid = client.software_specifications.get_uid_by_name(
+            "runtime-22.1-py3.9"
+        )
+
+        try:
+
+            model_details = store_model(
+                client=client,
+                model_object=linear_lr,
+                software_spec_uid=software_spec_uid,
+                name="test",
+                model_description="some vague explanation",
+                model_type="scikit-learn_1.0",
+            )
+
+            model_id = get_model_id_from_model_details(
+                client=client, model_details=model_details
+            )
+            self.assertIsInstance(model_details, dict)
+            print(model_details)
+            self.assertIsInstance(model_id, str)
+            print(model_id)
+
+        finally:
+            client.repository.delete(model_id)
+
+    def test_mlflow_wml_store_model(self):
+        from sklearn.datasets import load_iris
+        from sklearn.linear_model import LogisticRegression
+
+        from mlflow_watsonml.utils import get_model_id_from_model_details, store_model
+
+        plugin = self.__class__.plugin
+        iris = load_iris()
+        X = iris.data[:, :2]  # we only take the first two features.
+        y = iris.target
+        linear_lr = LogisticRegression()
+        linear_lr.fit(X, y)
+
+        model_path = os.path.abspath("./linear_lr")
+        if not os.path.exists(model_path):
+            mlflow.sklearn.save_model(linear_lr, model_path)
+
+        model_object = mlflow.sklearn.load_model(model_path)
+
+        client = plugin.get_wml_client()
+
+        software_spec_uid = client.software_specifications.get_uid_by_name(
+            "runtime-22.1-py3.9"
+        )
+
+        try:
+
+            model_details = store_model(
+                client=client,
+                model_object=model_object,
+                software_spec_uid=software_spec_uid,
+                name="test",
+                model_description="some vague explanation",
+                model_type="scikit-learn_1.0",
+            )
+
+            model_id = get_model_id_from_model_details(
+                client=client, model_details=model_details
+            )
+            self.assertIsInstance(model_details, dict)
+            print(model_details)
+            self.assertIsInstance(model_id, str)
+            print(model_id)
+
+        finally:
+            client.repository.delete(model_id)
+            shutil.rmtree(model_path)
