@@ -28,9 +28,6 @@ class TestAssetHealth(unittest.TestCase):
         test_class = self.__class__
 
         self.assertEqual(test_class.const, 1)
-        import sklearn
-
-        print(sklearn.__version__)
 
     def test_mlflow_wml_plugin_import(self):
         """Test if able to get WatsonMLDeployment plugin from mlflow"""
@@ -43,7 +40,8 @@ class TestAssetHealth(unittest.TestCase):
         from sklearn.datasets import load_iris
         from sklearn.linear_model import LogisticRegression
 
-        from mlflow_watsonml.utils import get_model_id_from_model_details, store_model
+        from mlflow_watsonml.utils import get_model_id_from_model_details
+        from mlflow_watsonml.wml import store_model
 
         plugin = self.__class__.plugin
         iris = load_iris()
@@ -130,8 +128,13 @@ class TestAssetHealth(unittest.TestCase):
             shutil.rmtree(model_path)
 
     def test_mlflow_wml_deploy_model(self):
+        import joblib
+        import sklearn
         from sklearn.datasets import load_iris
         from sklearn.linear_model import LogisticRegression
+
+        self.assertEqual(sklearn.__version__, "1.0.2")
+        self.assertEqual(joblib.__version__, "1.1.1")
 
         from mlflow_watsonml.utils import (
             get_deployment_id_from_deployment_details,
@@ -174,7 +177,7 @@ class TestAssetHealth(unittest.TestCase):
             )
 
             deployment_id = get_deployment_id_from_deployment_details(
-                deployment_details=deployment_details
+                client=client, deployment_details=deployment_details
             )
 
             self.assertIsInstance(deployment_details, dict)
