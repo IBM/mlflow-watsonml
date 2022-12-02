@@ -12,6 +12,10 @@ from mlflow.exceptions import MlflowException
 from mlflow.protos.databricks_pb2 import (ENDPOINT_NOT_FOUND,
                                           INVALID_PARAMETER_VALUE)
 
+from mlflow_watsonml.config import Config
+
+LOGGER = logging.getLogger(__name__)
+LOGGER.setLevel(logging.INFO)
 
 def target_help():
     # TODO: Improve
@@ -29,10 +33,47 @@ def run_local(name, model_uri, flavor=None, config=None):
     # TODO: implement
     raise MlflowException("mlflow-watsonml does not currently support run_local.")
 
-    
+
 class WatsonMLDeploymentClient(BaseDeploymentClient):
     def __init__(self, target_uri):
         super().__init__(target_uri)
+
+        self.wml_config = Config()
+        self.connect(
+            wml_credentials=self.wml_config["wml_credentials"],
+            deployment_space_name=self.wml_config["deployment_space_name"],
+        )
+    
+    def connect(self, wml_credentials: Dict, deployment_space_name: str) -> None:
+        """Connect to WML APIClient and set the default deployment space
+
+        Parameters
+        ----------
+        wml_credentials : Dict
+            WML Credentials
+        deployment_space_name : str
+            Deployment space name
+
+        Raises
+        ------
+        MlflowException
+            _description_
+        """
+        try:
+            self._wml_client = APIClient(wml_credentials=wml_credentials)
+            space_uid = self._get_space_id_from_space_name(
+                space_name=deployment_space_name
+            )
+            self._wml_client.set.default_space(space_uid=space_uid)
+
+            LOGGER.info("Connected to WML Client successfully")
+
+        except Exception as e:
+            raise MlflowException(
+                "Could not establish connection, check credentials and deployment space name."
+                f"{e}",
+                error_code=ENDPOINT_NOT_FOUND,
+            )
     
     def create_deployment(self, name, model_uri, flavor=None, config=None, endpoint=None):
         return super().create_deployment(name, model_uri, flavor, config, endpoint)
@@ -51,4 +92,45 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
     
     def predict(self, deployment_name=None, inputs=None, endpoint=None):
         return super().predict(deployment_name, inputs, endpoint)
+    
+    def get_wml_client(self) -> APIClient:
+        """_summary_
+
+        Returns
+        -------
+        APIClient
+            _description_
+        """
+        return self._wml_client
+    
+    def _get_space_id_from_space_name(self, space_name: str) -> str:
+        """Returns space ID from the space name
+
+        Parameters
+        ----------
+        space_name : str
+            space name
+
+        Returns
+        -------
+        str
+            space id
+
+        Raises
+        ------
+        MlflowException
+            _description_
+        """
+        spaces = self.get_wml_client().spaces.get_details()
+
+        try:
+            return next(
+                item
+                for item in spaces["resources"]
+                if item["entity"]["name"] == space_name
+            )["metadata"]["id"]
+        except StopIteration as _:
+            raise MlflowException(
+                message=f"space {space_name} not found", error_code=ENDPOINT_NOT_FOUND
+            )
     

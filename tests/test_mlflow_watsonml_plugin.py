@@ -25,7 +25,13 @@ class TestAssetHealth(unittest.TestCase):
 
     def test_mlflow_wml_plugin_import(self):
         """Test if able to get WatsonMLDeployment plugin from mlflow"""
+        from ibm_watson_machine_learning.client import APIClient
+
         from mlflow_watsonml.deploy import WatsonMLDeploymentClient
 
         plugin = get_deploy_client("watsonml")
         self.assertIsInstance(plugin, WatsonMLDeploymentClient)
+        self.assertIsInstance(plugin._wml_client, APIClient)
+
+
+        
