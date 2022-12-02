@@ -101,7 +101,9 @@ def deploy_model(client: APIClient, name: str, model_id: str, batch: bool = Fals
 
     try:
         deployment_details = client.deployments.create(
-            artifact_uid=model_id, meta_props=deployment_props, asynchronous=False
+            artifact_uid=model_id,
+            meta_props=deployment_props,
+            asynchronous=False,
         )
 
         deployment_details["name"] = deployment_details["entity"]["name"]
