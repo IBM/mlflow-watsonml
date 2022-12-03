@@ -9,7 +9,7 @@ def store_model(
     model_object: Any,
     software_spec_uid: str,
     name: str,
-    model_description: Dict,
+    model_description: str,
     model_type: str,
 ) -> Dict:
     """_summary_
@@ -24,7 +24,7 @@ def store_model(
         _description_
     name : str
         _description_
-    model_description : Dict
+    model_description : str
         _description_
     model_type : str
         _description_

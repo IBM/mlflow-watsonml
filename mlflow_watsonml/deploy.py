@@ -12,9 +12,26 @@ from mlflow.exceptions import MlflowException
 from mlflow.protos.databricks_pb2 import ENDPOINT_NOT_FOUND, INVALID_PARAMETER_VALUE
 
 from mlflow_watsonml.config import Config
+from mlflow_watsonml.utils import *
+from mlflow_watsonml.wml import *
 
 LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(logging.INFO)
+
+# CONSTANTS
+
+_PYTHONMAJOR = sys.version_info.major
+_PYTHONMINOR = sys.version_info.minor
+
+if _PYTHONMAJOR == 3 and _PYTHONMINOR == 7:
+    PYTHON_SPEC = f"default_py{_PYTHONMAJOR}.{_PYTHONMINOR}_opence"
+else:
+    PYTHON_SPEC = f"default_py{_PYTHONMAJOR}.{_PYTHONMINOR}"
+
+PYTHON = "python"
+
+DEFAULT_SOFTWARE_SPEC = "runtime-22.1-py3.9"
+DEFAULT_MODEL_TYPE = "scikit-learn_1.0"
 
 
 def target_help():
@@ -76,12 +93,105 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
             )
 
     def create_deployment(
-        self, name, model_uri, flavor=None, config=None, endpoint=None
-    ):
-        return super().create_deployment(name, model_uri, flavor, config, endpoint)
+        self,
+        name: str,
+        model_uri: str,
+        flavor: Optional[str] = None,
+        config: Optional[Dict] = None,
+    ) -> Dict:
+        """_summary_
 
-    def delete_deployment(self, name, config=None, endpoint=None):
-        return super().delete_deployment(name, config, endpoint)
+        Parameters
+        ----------
+        name : str
+            _description_
+        model_uri : str
+            _description_
+        flavor : Optional[str], optional
+            _description_, by default None
+        config : Optional[Dict], optional
+            _description_, by default None
+
+        Returns
+        -------
+        Dict
+            _description_
+        """
+        if config is None:
+            config = dict()
+
+        client = self.get_wml_client()
+
+        # check if a deployment by that name exists
+        if self.deployment_exists(name) or self.model_exists(name):
+            raise MlflowException(
+                f"Deplyment {name} already exists. Use `update_deployment()` or use a different name",
+                error_code=INVALID_PARAMETER_VALUE,
+            )
+
+        model_object = mlflow.sklearn.load_model(model_uri=model_uri)
+
+        software_spec_type = config.get("software_spec_type", DEFAULT_SOFTWARE_SPEC)
+        software_spec_uid = client.software_specifications.get_uid_by_name(
+            software_spec_type
+        )
+
+        model_description = config.get("model_description", "no explanation")
+        model_type = config.get("model_type", DEFAULT_MODEL_TYPE)
+
+        model_details = store_model(
+            client=client,
+            model_object=model_object,
+            software_spec_uid=software_spec_uid,
+            name=name,
+            model_description=model_description,
+            model_type=model_type,
+        )
+
+        model_id = get_model_id_from_model_details(model_details=model_details)
+
+        LOGGER.info("Stored Model Details = %s", model_details)
+        LOGGER.info("Stored Model UID = %s", model_id)
+
+        batch = config.get(batch, False)
+
+        deployment_details = deploy_model(
+            client=client,
+            name=name,
+            model_id=model_id,
+            batch=batch,
+        )
+
+        return deployment_details
+
+    def delete_deployment(self, name: str, config: Optional[Dict] = None) -> None:
+        """_summary_
+
+        Parameters
+        ----------
+        name : str
+            _description_
+        config : Optional[Dict], optional
+            _description_, by default None
+
+        Raises
+        ------
+        MlflowException
+            _description_
+        """
+        client = self.get_wml_client()
+        if self.deployment_exists(name) and self.model_exists(name):
+            try:
+                deployment_id = get_deployment_id_from_deployment_name(
+                    client=client, name=name
+                )
+                client.deployments.delete(deployment_uid=deployment_id)
+
+                model_id = get_model_id_from_model_name(client=client, name=name)
+                client.repository.delete(model_id)
+
+            except Exception as e:
+                raise MlflowException(e)
 
     def update_deployment(
         self, name, model_uri=None, flavor=None, config=None, endpoint=None
@@ -195,3 +305,37 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
             raise MlflowException(
                 message=f"space {space_name} not found", error_code=ENDPOINT_NOT_FOUND
             )
+
+    def deployment_exists(self, name: str) -> bool:
+        """Checks if a deployment by the given name exists
+
+        Parameters
+        ----------
+        name : str
+            name of the deployment
+
+        Returns
+        -------
+        bool
+            True if the deployment exists else False
+        """
+        deployments = self.list_deployments()
+
+        return any(item for item in deployments if item["name"] == name)
+
+    def model_exists(self, name: str) -> bool:
+        """Checks if a model by the given name exists
+
+        Parameters
+        ----------
+        name : str
+            name of the model
+
+        Returns
+        -------
+        bool
+            True if the model exists else False
+        """
+        models = self.list_models()
+
+        return any(item for item in models if item["name"] == name)

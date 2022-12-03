@@ -4,7 +4,9 @@ from ibm_watson_machine_learning.client import APIClient
 from mlflow.exceptions import MlflowException
 
 
-def get_deployment_id_from_deployment_name(self, deployment_name: str) -> str:
+def get_deployment_id_from_deployment_name(
+    client: APIClient, deployment_name: str
+) -> str:
     """Returns deployment ID from deployment name
 
     Parameters
@@ -20,7 +22,7 @@ def get_deployment_id_from_deployment_name(self, deployment_name: str) -> str:
     return self.get_deployment(name=deployment_name)["metadata"]["id"]
 
 
-def get_model_id_from_model_name(self, model_name: str) -> str:
+def get_model_id_from_model_name(client: APIClient, model_name: str) -> str:
     """Returns model ID from model name
 
     Parameters
