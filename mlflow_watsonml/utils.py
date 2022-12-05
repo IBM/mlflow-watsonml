@@ -1,7 +1,82 @@
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from ibm_watson_machine_learning.client import APIClient
-from mlflow.exceptions import MlflowException
+from mlflow.exceptions import ENDPOINT_NOT_FOUND, MlflowException
+
+
+def list_models(client: APIClient) -> List[Dict]:
+    """lists models in WML repository
+
+    Parameters
+    ----------
+    client : APIClient
+        WML client
+
+    Returns
+    -------
+    List[Dict]
+        list of model details dictionary
+    """
+    models = client.repository.get_model_details(get_all=True)["resources"]
+
+    for model in models:
+        model["name"] = model["metadata"]["name"]
+
+    return models
+
+
+def list_deployments(client: APIClient) -> List[Dict]:
+    """lists WML deployments
+
+    Parameters
+    ----------
+    client : APIClient
+        WML client
+
+    Returns
+    -------
+    List[Dict]
+        list of deployment details dictionary
+    """
+    deployments = client.deployments.get_details(get_all=True)["resources"]
+
+    # `name` is a required key in each deployment
+    for deployment in deployments:
+        deployment["name"] = deployment["entity"]["name"]
+
+    return deployments
+
+
+def get_deployment(client: APIClient, name: str) -> Dict:
+    """retreive deployment details
+
+    Parameters
+    ----------
+    client : APIClient
+        WML client
+    name : str
+        name of the deployment
+
+    Returns
+    -------
+    Dict
+        deployment details dictionary
+
+    Raises
+    ------
+    MlflowException
+        _description_
+    """
+    deployments = list_deployments(client=client)
+
+    try:
+        return next(item for item in deployments if item["entity"]["name"] == name)
+
+    except StopIteration as _:
+        raise MlflowException(
+            message=f"no deployment by the name {name} exists",
+            error_code=ENDPOINT_NOT_FOUND,
+        )
 
 
 def get_deployment_id_from_deployment_name(
@@ -19,7 +94,7 @@ def get_deployment_id_from_deployment_name(
     str
         deployment id
     """
-    return self.get_deployment(name=deployment_name)["metadata"]["id"]
+    return get_deployment(client=client, name=deployment_name)["metadata"]["id"]
 
 
 def get_model_id_from_model_name(client: APIClient, model_name: str) -> str:
@@ -40,7 +115,7 @@ def get_model_id_from_model_name(client: APIClient, model_name: str) -> str:
     MlflowException
         _description_
     """
-    models = self.list_models()
+    models = list_models(client=client)
 
     try:
         return next(item for item in models if item["name"] == model_name)["metadata"][
@@ -52,11 +127,13 @@ def get_model_id_from_model_name(client: APIClient, model_name: str) -> str:
         )
 
 
-def get_space_id_from_space_name(self, space_name: str) -> str:
+def get_space_id_from_space_name(client: APIClient, space_name: str) -> str:
     """Returns space ID from the space name
 
     Parameters
     ----------
+    client : APIClient
+        WML client
     space_name : str
         space name
 
@@ -70,12 +147,12 @@ def get_space_id_from_space_name(self, space_name: str) -> str:
     MlflowException
         _description_
     """
-    spaces = self.get_wml_client().spaces.get_details()
+    spaces = client.spaces.get_details()["resources"]
 
     try:
-        return next(
-            item for item in spaces["resources"] if item["entity"]["name"] == space_name
-        )["metadata"]["id"]
+        return next(item for item in spaces if item["entity"]["name"] == space_name)[
+            "metadata"
+        ]["id"]
     except StopIteration as _:
         raise MlflowException(
             message=f"space {space_name} not found", error_code=ENDPOINT_NOT_FOUND
@@ -118,3 +195,42 @@ def get_deployment_id_from_deployment_details(
     """
     deployment_id = client.deployments.get_id(deployment_details=deployment_details)
     return deployment_id
+
+
+def deployment_exists(client: APIClient, name: str) -> bool:
+    """Checks if a deployment by the given name exists
+
+    Parameters
+    ----------
+    client : APIClient
+        WML client
+    name : str
+        name of the deployment
+
+    Returns
+    -------
+    bool
+        True if the deployment exists else False
+    """
+    deployments = list_deployments(client=client)
+    return any(item for item in deployments if item["name"] == name)
+
+
+def model_exists(client: APIClient, name: str) -> bool:
+    """Checks if a model by the given name exists
+
+    Parameters
+    ----------
+    client : APIClient
+        WML client
+    name : str
+        name of the model
+
+    Returns
+    -------
+    bool
+        True if the model exists else False
+    """
+    models = list_models(client=client)
+
+    return any(item for item in models if item["name"] == name)

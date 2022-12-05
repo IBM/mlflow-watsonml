@@ -96,7 +96,7 @@ class TestAssetHealth(unittest.TestCase):
         if not os.path.exists(model_path):
             mlflow.sklearn.save_model(linear_lr, model_path)
 
-        model_object = mlflow.sklearn.load_model(model_path)
+        model_object = mlflow.pyfunc.load_model(model_path)
 
         client = plugin.get_wml_client()
 
@@ -215,7 +215,7 @@ class TestAssetHealth(unittest.TestCase):
         if not os.path.exists(model_path):
             mlflow.sklearn.save_model(linear_lr, model_path)
 
-        model_object = mlflow.sklearn.load_model(model_path)
+        model_object = mlflow.pyfunc.load_model(model_path)
 
         client = plugin.get_wml_client()
 
