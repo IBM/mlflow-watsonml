@@ -132,7 +132,7 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
                 error_code=INVALID_PARAMETER_VALUE,
             )
 
-        model_object = mlflow.models.Model.load(path=model_uri)
+        model_object = mlflow.sklearn.load_model(model_uri=model_uri)
 
         software_spec_type = config.get("software_spec_type", DEFAULT_SOFTWARE_SPEC)
         software_spec_uid = client.software_specifications.get_uid_by_name(
@@ -151,12 +151,14 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
             model_type=model_type,
         )
 
-        model_id = get_model_id_from_model_details(model_details=model_details)
+        model_id = get_model_id_from_model_details(
+            client=client, model_details=model_details
+        )
 
         LOGGER.info("Stored Model Details = %s", model_details)
         LOGGER.info("Stored Model UID = %s", model_id)
 
-        batch = config.get(batch, False)
+        batch = config.get("batch", False)
 
         deployment_details = deploy_model(
             client=client,
@@ -193,8 +195,62 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
     ):
         return super().update_deployment(name, model_uri, flavor, config, endpoint)
 
-    def predict(self, deployment_name=None, inputs=None, endpoint=None):
-        return super().predict(deployment_name, inputs, endpoint)
+    def predict(self, deployment_name=None, df=Optional[pd.DataFrame]) -> pd.DataFrame:
+        """_summary_
+
+        Parameters
+        ----------
+        deployment_name : _type_, optional
+            _description_, by default None
+        df : _type_, optional
+            _description_, by default Optional[pd.DataFrame]
+
+        Returns
+        -------
+        pd.DataFrame
+            _description_
+
+        Raises
+        ------
+        MlflowException
+            _description_
+        """
+        if self._wml_client is None:
+            raise MlflowException(
+                message="Deployment doesn't exist. Call `create_deployment()`",
+                error_code=ENDPOINT_NOT_FOUND,
+            )
+
+        client = self.get_wml_client()
+
+        scoring_payload = {
+            self._wml_client.deployments.ScoringMetaNames.INPUT_DATA: [{"values": df}]
+        }
+
+        deployment_id = get_deployment_id_from_deployment_name(
+            client=client,
+            deployment_name=deployment_name,
+        )
+
+        predictions = client.deployments.score(
+            deployment_id=deployment_id, meta_props=scoring_payload
+        )["predictions"]
+
+        fields = predictions[0]["fields"]
+
+        frames = []
+        for prediction in predictions:
+            frames.extend(prediction["values"])
+
+        ans = pd.DataFrame(frames, columns=fields)
+
+        return ans
+
+    def list_deployments(self) -> List[Dict]:
+        return list_deployments(client=self.get_wml_client())
+
+    def get_deployment(self, name: str) -> Dict:
+        return get_deployment(client=self.get_wml_client(), name=name)
 
     def get_wml_client(self) -> APIClient:
         """_summary_
