@@ -78,8 +78,9 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         """
         try:
             self._wml_client = APIClient(wml_credentials=wml_credentials)
-            space_uid = self._get_space_id_from_space_name(
-                space_name=deployment_space_name
+            space_uid = get_space_id_from_space_name(
+                client=self._wml_client,
+                space_name=deployment_space_name,
             )
             self._wml_client.set.default_space(space_uid=space_uid)
 
@@ -123,13 +124,15 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         client = self.get_wml_client()
 
         # check if a deployment by that name exists
-        if self.deployment_exists(name) or self.model_exists(name):
+        if deployment_exists(client=client, name=name) or model_exists(
+            client=client, name=name
+        ):
             raise MlflowException(
                 f"Deplyment {name} already exists. Use `update_deployment()` or use a different name",
                 error_code=INVALID_PARAMETER_VALUE,
             )
 
-        model_object = mlflow.sklearn.load_model(model_uri=model_uri)
+        model_object = mlflow.models.Model.load(path=model_uri)
 
         software_spec_type = config.get("software_spec_type", DEFAULT_SOFTWARE_SPEC)
         software_spec_uid = client.software_specifications.get_uid_by_name(
@@ -180,87 +183,15 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
             _description_
         """
         client = self.get_wml_client()
-        if self.deployment_exists(name) and self.model_exists(name):
-            try:
-                deployment_id = get_deployment_id_from_deployment_name(
-                    client=client, name=name
-                )
-                client.deployments.delete(deployment_uid=deployment_id)
-
-                model_id = get_model_id_from_model_name(client=client, name=name)
-                client.repository.delete(model_id)
-
-            except Exception as e:
-                raise MlflowException(e)
+        if deployment_exists(client=client, name=name) or model_exists(
+            client=client, name=name
+        ):
+            delete_model(client=client, name=name)
 
     def update_deployment(
         self, name, model_uri=None, flavor=None, config=None, endpoint=None
     ):
         return super().update_deployment(name, model_uri, flavor, config, endpoint)
-
-    def list_deployments(self) -> List[Dict]:
-        """_summary_
-
-        Returns
-        -------
-        List[Dict]
-            _description_
-        """
-        deployments = self.get_wml_client().deployments.get_details(get_all=True)[
-            "resources"
-        ]
-
-        # `name` is a required key in each deployment
-        for deployment in deployments:
-            deployment["name"] = deployment["entity"]["name"]
-
-        return deployments
-
-    def list_models(self) -> List[Dict]:
-        """_summary_
-
-        Returns
-        -------
-        List[Dict]
-            _description_
-        """
-        models = self.get_wml_client().repository.get_model_details(get_all=True)[
-            "resources"
-        ]
-
-        for model in models:
-            model["name"] = model["metadata"]["name"]
-
-        return models
-
-    def get_deployment(self, name: str) -> Dict:
-        """_summary_
-
-        Parameters
-        ----------
-        name : str
-            deployment name
-
-        Returns
-        -------
-        Dict
-            deployment details
-
-        Raises
-        ------
-        MlflowException
-            _description_
-        """
-        deployments = self.list_deployments()
-
-        try:
-            return next(item for item in deployments if item["entity"]["name"] == name)
-
-        except StopIteration as _:
-            raise MlflowException(
-                message=f"no deployment by the name {name} exists",
-                error_code=ENDPOINT_NOT_FOUND,
-            )
 
     def predict(self, deployment_name=None, inputs=None, endpoint=None):
         return super().predict(deployment_name, inputs, endpoint)
@@ -273,69 +204,7 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         APIClient
             _description_
         """
-        return self._wml_client
-
-    def _get_space_id_from_space_name(self, space_name: str) -> str:
-        """Returns space ID from the space name
-
-        Parameters
-        ----------
-        space_name : str
-            space name
-
-        Returns
-        -------
-        str
-            space id
-
-        Raises
-        ------
-        MlflowException
-            _description_
-        """
-        spaces = self.get_wml_client().spaces.get_details()
-
-        try:
-            return next(
-                item
-                for item in spaces["resources"]
-                if item["entity"]["name"] == space_name
-            )["metadata"]["id"]
-        except StopIteration as _:
-            raise MlflowException(
-                message=f"space {space_name} not found", error_code=ENDPOINT_NOT_FOUND
-            )
-
-    def deployment_exists(self, name: str) -> bool:
-        """Checks if a deployment by the given name exists
-
-        Parameters
-        ----------
-        name : str
-            name of the deployment
-
-        Returns
-        -------
-        bool
-            True if the deployment exists else False
-        """
-        deployments = self.list_deployments()
-
-        return any(item for item in deployments if item["name"] == name)
-
-    def model_exists(self, name: str) -> bool:
-        """Checks if a model by the given name exists
-
-        Parameters
-        ----------
-        name : str
-            name of the model
-
-        Returns
-        -------
-        bool
-            True if the model exists else False
-        """
-        models = self.list_models()
-
-        return any(item for item in models if item["name"] == name)
+        if hasattr(self, "_wml_client"):
+            return self._wml_client
+        else:
+            raise MlflowException(f"No WML Client found")

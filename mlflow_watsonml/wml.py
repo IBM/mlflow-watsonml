@@ -3,6 +3,8 @@ from typing import Any, Dict
 from ibm_watson_machine_learning.client import APIClient
 from mlflow.exceptions import MlflowException
 
+from mlflow_watsonml.utils import *
+
 
 def store_model(
     client: APIClient,
@@ -112,3 +114,19 @@ def deploy_model(client: APIClient, name: str, model_id: str, batch: bool = Fals
         raise MlflowException(e)
 
     return deployment_details
+
+
+def delete_model(client: APIClient, name: str):
+    try:
+        deployment_id = get_deployment_id_from_deployment_name(client=client, name=name)
+        client.deployments.delete(deployment_uid=deployment_id)
+
+        model_id = get_model_id_from_model_name(client=client, name=name)
+        client.repository.delete(model_id)
+
+    except Exception as e:
+        raise MlflowException(e)
+
+
+def update_model(client: APIClient):
+    ...
