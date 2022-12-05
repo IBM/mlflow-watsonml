@@ -117,15 +117,16 @@ def deploy_model(client: APIClient, name: str, model_id: str, batch: bool = Fals
 
 
 def delete_model(client: APIClient, name: str):
-    try:
-        deployment_id = get_deployment_id_from_deployment_name(client=client, name=name)
-        client.deployments.delete(deployment_uid=deployment_id)
+    deployment_id = get_deployment_id_from_deployment_name(
+        client=client, deployment_name=name
+    )
+    client.deployments.delete(deployment_uid=deployment_id)
 
-        model_id = get_model_id_from_model_name(client=client, name=name)
-        client.repository.delete(model_id)
+    model_id = get_model_id_from_model_name(client=client, model_name=name)
+    client.repository.delete(artifact_uid=model_id)
 
-    except Exception as e:
-        raise MlflowException(e)
+    # except Exception as e:
+    #     raise MlflowException(e)
 
 
 def update_model(client: APIClient):
