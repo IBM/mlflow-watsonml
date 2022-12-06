@@ -82,11 +82,6 @@ def deploy_model(client: APIClient, name: str, model_id: str, batch: bool = Fals
     -------
     _type_
         _description_
-
-    Raises
-    ------
-    MlflowException
-        _description_
     """
 
     if batch:
