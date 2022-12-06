@@ -70,11 +70,6 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
             WML Credentials
         deployment_space_name : str
             Deployment space name
-
-        Raises
-        ------
-        MlflowException
-            _description_
         """
         try:
             self._wml_client = APIClient(wml_credentials=wml_credentials)
@@ -100,23 +95,23 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         flavor: Optional[str] = None,
         config: Optional[Dict] = None,
     ) -> Dict:
-        """_summary_
+        """Deploy the model at `model_uri` to a WML target
 
         Parameters
         ----------
         name : str
-            _description_
+            name of the deployment
         model_uri : str
-            _description_
+            URI (local or remote) of the model
         flavor : Optional[str], optional
-            _description_, by default None
+            flavor of the deployed model, by default None
         config : Optional[Dict], optional
-            _description_, by default None
+            configuration parameters, by default None
 
         Returns
         -------
         Dict
-            _description_
+            deployment details dictionary
         """
         if config is None:
             config = dict()
@@ -170,19 +165,14 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         return deployment_details
 
     def delete_deployment(self, name: str, config: Optional[Dict] = None) -> None:
-        """_summary_
+        """Delete the deployment at the provided `name` from WML
 
         Parameters
         ----------
         name : str
-            _description_
+            name of the deployment
         config : Optional[Dict], optional
-            _description_, by default None
-
-        Raises
-        ------
-        MlflowException
-            _description_
+            configuration parameters, by default None
         """
         client = self.get_wml_client()
         if deployment_exists(client=client, name=name) or model_exists(

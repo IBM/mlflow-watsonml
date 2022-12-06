@@ -61,11 +61,6 @@ def get_deployment(client: APIClient, name: str) -> Dict:
     -------
     Dict
         deployment details dictionary
-
-    Raises
-    ------
-    MlflowException
-        _description_
     """
     deployments = list_deployments(client=client)
 
@@ -109,11 +104,6 @@ def get_model_id_from_model_name(client: APIClient, model_name: str) -> str:
     -------
     str
         model id
-
-    Raises
-    ------
-    MlflowException
-        _description_
     """
     models = list_models(client=client)
 
@@ -141,11 +131,6 @@ def get_space_id_from_space_name(client: APIClient, space_name: str) -> str:
     -------
     str
         space id
-
-    Raises
-    ------
-    MlflowException
-        _description_
     """
     spaces = client.spaces.get_details()["resources"]
 
@@ -160,17 +145,17 @@ def get_space_id_from_space_name(client: APIClient, space_name: str) -> str:
 
 
 def get_model_id_from_model_details(client: APIClient, model_details: Dict) -> str:
-    """_summary_
+    """Return model ID from model details dictionary
 
     Parameters
     ----------
     model_details : Dict
-        _description_
+        model details dictionary
 
     Returns
     -------
     str
-        _description_
+        model id
     """
     model_id = client.repository.get_model_id(model_details=model_details)
     return model_id
@@ -179,19 +164,19 @@ def get_model_id_from_model_details(client: APIClient, model_details: Dict) -> s
 def get_deployment_id_from_deployment_details(
     client: APIClient, deployment_details: Dict
 ) -> str:
-    """_summary_
+    """Return deployment ID from deployment details dictionary
 
     Parameters
     ----------
     client : APIClient
-        _description_
+        WML client
     deployment_details : Dict
-        _description_
+        deployment details dictionary
 
     Returns
     -------
     str
-        _description_
+        deployment id
     """
     deployment_id = client.deployments.get_id(deployment_details=deployment_details)
     return deployment_id
