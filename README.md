@@ -1,7 +1,7 @@
 # Mlflow-watsonml
 
-A plugin that integrates [watsonml](https://github.com/pytorch/serve) with MLflow pipeline.
-``mlflow_watsonml`` enables mlflow users to deploy the  mlflow pipeline models into watsonml .
+A plugin that integrates [watsonml](http://ibm-wml-api-pyclient.mybluemix.net) with MLflow pipeline.
+``mlflow_watsonml`` enables mlflow users to deploy mlflow pipeline models into watsonml.
 Command line APIs of the plugin (also accessible through mlflow's python package) makes the deployment process seamless.
 
 ## Prerequisites
@@ -18,13 +18,6 @@ Plugin package which is available in pypi and can be installed using
 
 ```bash
 pip install mlflow-watsonml
-```
-##Installation from Source
-
-Plugin package could also be installed from source using the following commands
-```
-python setup.py build
-python setup.py install
 ```
 
 ## What does it do
