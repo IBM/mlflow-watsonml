@@ -23,6 +23,7 @@ setup(
         "python_dotenv",
         "joblib",
     ],
+    extra_requires={"dev": ["build", "wheel", "twine"]},
     entry_points={"mlflow.deployments": "watsonml=mlflow_watsonml.deploy"},
     python_requires=">=3.9",
 )

@@ -1,4 +1,0 @@
-mlflow
-ibm_watson_machine_learning
-python_dotenv
-joblib==1.2.0
