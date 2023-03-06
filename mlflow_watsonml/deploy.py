@@ -1,8 +1,6 @@
 import logging
-import os
 import sys
-import zipfile
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 import mlflow
 import pandas as pd
