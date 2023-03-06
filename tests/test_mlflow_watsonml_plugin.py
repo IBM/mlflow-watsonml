@@ -56,8 +56,9 @@ class TestAssetHealth(unittest.TestCase):
             "runtime-22.1-py3.9"
         )
 
-        try:
+        model_id = None
 
+        try:
             model_details = store_model(
                 client=client,
                 model_object=linear_lr,
@@ -76,7 +77,8 @@ class TestAssetHealth(unittest.TestCase):
             print(model_id)
 
         finally:
-            client.repository.delete(model_id)
+            if model_id is not None:
+                client.repository.delete(model_id)
 
     def test_mlflow_wml_store_model(self):
         from sklearn.datasets import load_iris
@@ -104,8 +106,9 @@ class TestAssetHealth(unittest.TestCase):
             "runtime-22.1-py3.9"
         )
 
-        try:
+        model_id = None
 
+        try:
             model_details = store_model(
                 client=client,
                 model_object=model_object,
@@ -124,7 +127,8 @@ class TestAssetHealth(unittest.TestCase):
             print(model_id)
 
         finally:
-            client.repository.delete(model_id)
+            if model_id is not None:
+                client.repository.delete(model_id)
             shutil.rmtree(model_path)
 
     def test_sklearn_wml_deploy_model(self):
@@ -155,8 +159,10 @@ class TestAssetHealth(unittest.TestCase):
             "runtime-22.1-py3.9"
         )
 
-        try:
+        deployment_id = None
+        model_id = None
 
+        try:
             model_details = store_model(
                 client=client,
                 model_object=linear_lr,
@@ -186,8 +192,10 @@ class TestAssetHealth(unittest.TestCase):
             print(deployment_id)
 
         finally:
-            client.deployments.delete(deployment_id)
-            client.repository.delete(model_id)
+            if deployment_id is not None:
+                client.deployments.delete(deployment_id)
+            if model_id is not None:
+                client.repository.delete(model_id)
 
     def test_mlflow_wml_deploy_model(self):
         import joblib
@@ -223,8 +231,10 @@ class TestAssetHealth(unittest.TestCase):
             "runtime-22.1-py3.9"
         )
 
-        try:
+        deployment_id = None
+        model_id = None
 
+        try:
             model_details = store_model(
                 client=client,
                 model_object=model_object,
@@ -254,6 +264,8 @@ class TestAssetHealth(unittest.TestCase):
             print(deployment_id)
 
         finally:
-            client.deployments.delete(deployment_id)
-            client.repository.delete(model_id)
+            if deployment_id is not None:
+                client.deployments.delete(deployment_id)
+            if model_id is not None:
+                client.repository.delete(model_id)
             shutil.rmtree(model_path)
