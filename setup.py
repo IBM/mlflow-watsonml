@@ -6,6 +6,9 @@ with open("README.md", "r") as fh:
 with open("VERSION", "r") as fh:
     version = fh.read().strip()
 
+with open("requirements.txt", "r") as fh:
+    install_requires = fh.readlines()
+
 setup(
     name="mlflow-watsonml",
     version=version,
@@ -17,12 +20,7 @@ setup(
     packages=find_packages(where="mlflow_watsonml"),
     author="IBM AI Model Factory team",
     author_email="dhruv.shah@ibm.com",
-    install_requires=[
-        "mlflow",
-        "ibm_watson_machine_learning",
-        "python_dotenv",
-        "joblib",
-    ],
+    install_requires=install_requires,
     extra_requires={"dev": ["build", "wheel", "twine"]},
     entry_points={"mlflow.deployments": "watsonml=mlflow_watsonml.deploy"},
     python_requires=">=3.9",
