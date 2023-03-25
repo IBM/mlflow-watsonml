@@ -28,8 +28,8 @@ else:
 
 PYTHON = "python"
 
-DEFAULT_SOFTWARE_SPEC = "runtime-22.1-py3.9"
-DEFAULT_MODEL_TYPE = "scikit-learn_1.0"
+DEFAULT_SOFTWARE_SPEC = "runtime-22.2-py3.10"
+DEFAULT_MODEL_TYPE = "scikit-learn_1.1"
 
 
 def target_help():

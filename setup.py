@@ -21,7 +21,7 @@ setup(
     author="IBM AI Model Factory team",
     author_email="dhruv.shah@ibm.com",
     install_requires=install_requires,
-    extra_requires={"dev": ["build", "wheel", "twine"]},
+    extras_require={"dev": ["black", "pytest", "build", "wheel", "twine"]},
     entry_points={"mlflow.deployments": "watsonml=mlflow_watsonml.deploy"},
     python_requires=">=3.9",
 )
