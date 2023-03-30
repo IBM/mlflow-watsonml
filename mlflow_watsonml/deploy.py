@@ -1,8 +1,6 @@
 import logging
-import os
 import sys
-import zipfile
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 import mlflow
 import pandas as pd
@@ -19,19 +17,8 @@ LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(logging.INFO)
 
 # CONSTANTS
-
-_PYTHONMAJOR = sys.version_info.major
-_PYTHONMINOR = sys.version_info.minor
-
-if _PYTHONMAJOR == 3 and _PYTHONMINOR == 7:
-    PYTHON_SPEC = f"default_py{_PYTHONMAJOR}.{_PYTHONMINOR}_opence"
-else:
-    PYTHON_SPEC = f"default_py{_PYTHONMAJOR}.{_PYTHONMINOR}"
-
-PYTHON = "python"
-
-DEFAULT_SOFTWARE_SPEC = "runtime-22.1-py3.9"
-DEFAULT_MODEL_TYPE = "scikit-learn_1.0"
+DEFAULT_SOFTWARE_SPEC = "runtime-22.2-py3.10"
+DEFAULT_MODEL_TYPE = "scikit-learn_1.1"
 
 
 def target_help():
