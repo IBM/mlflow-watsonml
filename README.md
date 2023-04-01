@@ -1,17 +1,8 @@
-# Mlflow-watsonml
+# Mlflow-WatsonML
 
-A plugin that integrates [watsonml](http://ibm-wml-api-pyclient.mybluemix.net) with MLflow pipeline.
-``mlflow_watsonml`` enables mlflow users to deploy mlflow pipeline models into watsonml.
+A plugin that integrates [WatsonML](http://ibm-wml-api-pyclient.mybluemix.net) with MLflow pipeline.
+``mlflow_watsonml`` enables mlflow users to deploy mlflow pipeline models into WatsonML.
 Command line APIs of the plugin (also accessible through mlflow's python package) makes the deployment process seamless.
-
-## Prerequisites
-
-Following are the list of packages which needs to be installed before running the watsonml deployment plugin
-
-1. ibm-watson-machine-learning
-2. pydotenv
-3. mlflow
-
 
 ## Installation
 Plugin package which is available in pypi and can be installed using
@@ -21,18 +12,19 @@ pip install mlflow-watsonml
 ```
 
 ## What does it do
-Installing this package uses python's entrypoint mechanism to register the plugin into MLflow's
-plugin registry. This registry will be invoked each time you launch MLflow script or command line
-argument.
+Installing this package uses python's entrypoint mechanism to register the plugin into MLflow's plugin registry. This registry will be invoked each time you launch MLflow script or command line argument.
+
+## Authentication
+In order to connect to WatsonML, refer to [.env.template](.env.template)
 
 
 ### Create deployment
 The `create` command line argument and ``create_deployment`` python
-APIs does the deployment of a model built with MLflow to watsonml.
+APIs does the deployment of a model built with MLflow to WatsonML.
 
 ##### CLI
 ```shell script
-mlflow deployments create -t watsonml -m <model-uri> --name <deployment-name> -C "software_spec_type=runtime-22.1-py3.9"
+mlflow deployments create -t watsonml -m <model-uri> --name <deployment-name> -C "software_spec_type=runtime-22.2-py3.10"
 ```
 
 ##### Python API
@@ -45,13 +37,13 @@ plugin = get_deploy_client(target_uri)
 plugin.create_deployment(
     name=<deployment-name>, 
     model_uri=<model-uri>, 
-    config={"software_spec_type": "runtime-22.1-py3.9"}
+    config={"software_spec_type": "runtime-22.2-py3.10"}
 )
 ```
 
 ### Update deployment
 Update API can used to modify the configuration parameters such as number of workers, version etc., of an already deployed model.
-watsonml will make sure the user experience is seamless while changing the model in a live environment.
+WatsonML will make sure the user experience is seamless while changing the model in a live environment.
 
 ##### CLI
 ```shell script
@@ -73,11 +65,11 @@ mlflow deployments delete -t watsonml --name <deployment name / version number>
 
 ##### Python API
 ```python
-plugin.delete_deployment(name=<deployment name / version number>)
+plugin.delete_deployment(name=<deployment name>)
 ```
 
 ### List all deployments
-Lists the names of all the models deployed on the configured watsonml.
+Lists the names of all the models deployed on the configured WatsonML.
 
 ##### CLI
 ```shell script
@@ -90,8 +82,7 @@ plugin.list_deployments()
 ```
 
 ### Get deployment details
-Get API fetches the details of the deployed model. By default, Get API fetches all the versions of the 
-deployed model.
+Get API fetches the details of the deployed model. By default, Get API fetches all the versions of the deployed model.
 
 ##### CLI
 ```shell script
@@ -106,8 +97,7 @@ plugin.get_deployment(name=<deployment name>)
 ### Run Prediction on deployed model
 Predict API enables to run prediction on the deployed model.
 
-For the prediction inputs, DataFrame, Tensor and Json formats are supported. The python API supports all of these
- three formats. When invoked via command line, one needs to pass the json file path that contains the inputs.
+For the prediction inputs, DataFrame and JSON formats are supported. The python API supports all of these three formats. When invoked via command line, one needs to pass the json file path that contains the inputs.
 
 ##### CLI
 ```shell script
