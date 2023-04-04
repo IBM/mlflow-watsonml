@@ -2,6 +2,7 @@ from typing import Dict, List
 
 from ibm_watson_machine_learning.client import APIClient
 from mlflow.exceptions import ENDPOINT_NOT_FOUND, MlflowException
+from tabulate import tabulate
 
 
 def list_models(client: APIClient) -> List[Dict]:
@@ -219,3 +220,22 @@ def model_exists(client: APIClient, name: str) -> bool:
     models = list_models(client=client)
 
     return any(item for item in models if item["name"] == name)
+
+
+def print_package_specifications(
+    client: APIClient, software_spec: str = "runtime-22.2-py3.10"
+) -> None:
+    """Print the package spec along with version to use as reference for creating an env
+
+    Parameters
+    ----------
+    client : APIClient
+        WML Client
+    software_spec : str, optional
+        Software Spec, by default "runtime-22.2-py3.10"
+    """
+    pkg_specs = client.software_specifications.get_details(
+        client.software_specifications.get_id_by_name(software_spec)
+    )["entity"]["software_specification"]["software_configuration"]["included_packages"]
+
+    print(tabulate(pkg_specs, headers="keys"))
