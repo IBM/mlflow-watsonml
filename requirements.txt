@@ -2,3 +2,4 @@ mlflow
 ibm_watson_machine_learning
 python_dotenv
 scikit-learn==1.1.1
+joblib==1.1.1
