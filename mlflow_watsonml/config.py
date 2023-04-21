@@ -1,5 +1,6 @@
 import json
 import os
+from typing import Dict, Optional
 
 from dotenv import load_dotenv
 from mlflow import MlflowException
@@ -7,72 +8,71 @@ from mlflow.protos.databricks_pb2 import INVALID_PARAMETER_VALUE
 
 
 class Config(dict):
-    def __init__(self):
+    def __init__(self, config: Optional[Dict] = None):
         """
         Initializes constants from .env file and environment variables
         """
         super().__init__()
 
-        load_dotenv()
+        if config is None:
+            load_dotenv()
+            config = dict(os.environ)
 
         # Load the appropriate environment variables based on their presence
-        if (
-            "WML_CREDENTIALS_FILE" in os.environ
-            and "DEPLOYMENT_SPACE_NAME" in os.environ
-        ):
-            wml_credentials_file = os.environ["WML_CREDENTIALS_FILE"]
+        if "WML_CREDENTIALS_FILE" in config and "DEPLOYMENT_SPACE_NAME" in config:
+            wml_credentials_file = config["WML_CREDENTIALS_FILE"]
 
             with open(wml_credentials_file, "r") as f:
                 self["wml_credentials"] = json.load(f)
 
-            self["deployment_space_name"] = os.environ["DEPLOYMENT_SPACE_NAME"]
+            self["deployment_space_name"] = config["DEPLOYMENT_SPACE_NAME"]
 
         elif (
-            "APIKEY" in os.environ
-            and "LOCATION" in os.environ
-            and "URL" in os.environ
-            and "DEPLOYMENT_SPACE_NAME" in os.environ
+            "APIKEY" in config
+            and "LOCATION" in config
+            and "URL" in config
+            and "DEPLOYMENT_SPACE_NAME" in config
         ):
-            apikey = os.environ["APIKEY"]
-            location = os.environ["LOCATION"]
-            url = os.environ["URL"]
+            apikey = config["APIKEY"]
+            location = config["LOCATION"]
+            url = config["URL"]
 
             self["wml_credentials"] = {
                 "apikey": apikey,
                 "url": url,
             }
 
-            self["deployment_space_name"] = os.environ["DEPLOYMENT_SPACE_NAME"]
+            self["deployment_space_name"] = config["DEPLOYMENT_SPACE_NAME"]
 
         elif (
-            "TOKEN" in os.environ
-            and "LOCATION" in os.environ
-            and "URL" in os.environ
-            and "DEPLOYMENT_SPACE_NAME" in os.environ
+            "TOKEN" in config
+            and "LOCATION" in config
+            and "URL" in config
+            and "DEPLOYMENT_SPACE_NAME" in config
         ):
-            token = os.environ["TOKEN"]
-            location = os.environ["LOCATION"]
-            url = os.environ["URL"]
+            token = config["TOKEN"]
+            location = config["LOCATION"]
+            url = config["URL"]
 
             self["wml_credentials"] = {
                 "token": token,
                 "url": url,
             }
-            self["deployment_space_name"] = os.environ["DEPLOYMENT_SPACE_NAME"]
+            self["deployment_space_name"] = config["DEPLOYMENT_SPACE_NAME"]
 
         elif (
-            "USERNAME" in os.environ
-            and "PASSWORD" in os.environ
-            and "URL" in os.environ
-            and "INSTANCE_ID" in os.environ
-            and "VERSION" in os.environ
-            and "DEPLOYMENT_SPACE_NAME" in os.environ
+            "USERNAME" in config
+            and "PASSWORD" in config
+            and "URL" in config
+            and "INSTANCE_ID" in config
+            and "VERSION" in config
+            and "DEPLOYMENT_SPACE_NAME" in config
         ):
-            username = os.environ["USERNAME"]
-            password = os.environ["PASSWORD"]
-            url = os.environ["URL"]
-            instance_id = os.environ["INSTANCE_ID"]
-            version = os.environ["VERSION"]
+            username = config["USERNAME"]
+            password = config["PASSWORD"]
+            url = config["URL"]
+            instance_id = config["INSTANCE_ID"]
+            version = config["VERSION"]
 
             self["wml_credentials"] = {
                 "username": username,
@@ -82,21 +82,21 @@ class Config(dict):
                 "version": version,
             }
 
-            self["deployment_space_name"] = os.environ["DEPLOYMENT_SPACE_NAME"]
+            self["deployment_space_name"] = config["DEPLOYMENT_SPACE_NAME"]
 
         elif (
-            "USERNAME" in os.environ
-            and "APIKEY" in os.environ
-            and "URL" in os.environ
-            and "INSTANCE_ID" in os.environ
-            and "VERSION" in os.environ
-            and "DEPLOYMENT_SPACE_NAME" in os.environ
+            "USERNAME" in config
+            and "APIKEY" in config
+            and "URL" in config
+            and "INSTANCE_ID" in config
+            and "VERSION" in config
+            and "DEPLOYMENT_SPACE_NAME" in config
         ):
-            username = os.environ["USERNAME"]
-            apikey = os.environ["APIKEY"]
-            url = os.environ["URL"]
-            instance_id = os.environ["INSTANCE_ID"]
-            version = os.environ["VERSION"]
+            username = config["USERNAME"]
+            apikey = config["APIKEY"]
+            url = config["URL"]
+            instance_id = config["INSTANCE_ID"]
+            version = config["VERSION"]
 
             self["wml_credentials"] = {
                 "username": username,
@@ -106,19 +106,19 @@ class Config(dict):
                 "version": version,
             }
 
-            self["deployment_space_name"] = os.environ["DEPLOYMENT_SPACE_NAME"]
+            self["deployment_space_name"] = config["DEPLOYMENT_SPACE_NAME"]
 
         elif (
-            "TOKEN" in os.environ
-            and "URL" in os.environ
-            and "INSTANCE_ID" in os.environ
-            and "VERSION" in os.environ
-            and "DEPLOYMENT_SPACE_NAME" in os.environ
+            "TOKEN" in config
+            and "URL" in config
+            and "INSTANCE_ID" in config
+            and "VERSION" in config
+            and "DEPLOYMENT_SPACE_NAME" in config
         ):
-            token = os.environ["TOKEN"]
-            url = os.environ["URL"]
-            instance_id = os.environ["INSTANCE_ID"]
-            version = os.environ["VERSION"]
+            token = config["TOKEN"]
+            url = config["URL"]
+            instance_id = config["INSTANCE_ID"]
+            version = config["VERSION"]
 
             self["wml_credentials"] = {
                 "token": token,
@@ -127,7 +127,7 @@ class Config(dict):
                 "version": version,
             }
 
-            self["deployment_space_name"] = os.environ["DEPLOYMENT_SPACE_NAME"]
+            self["deployment_space_name"] = config["DEPLOYMENT_SPACE_NAME"]
 
         else:
             raise MlflowException(
