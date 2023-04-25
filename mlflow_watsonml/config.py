@@ -32,7 +32,7 @@ class Config(dict):
         if config is None:
             LOGGER.info(
                 """Input credentials not provided. 
-            Attempting to load credentials from environment variables."""
+                Attempting to load credentials from environment variables."""
             )
 
             load_dotenv()
@@ -68,8 +68,7 @@ class Config(dict):
             if "VERSION" in os.environ.keys():
                 config[VERSION] = os.getenv("VERSION")
 
-        if DEPLOYMENT_SPACE_NAME in config.keys():
-            self[DEPLOYMENT_SPACE_NAME] = config[DEPLOYMENT_SPACE_NAME]
+        self[DEPLOYMENT_SPACE_NAME] = config.get(DEPLOYMENT_SPACE_NAME, None)
 
         # Load the appropriate environment variables based on their presence
         if WML_CREDENTIALS_FILE in config:
