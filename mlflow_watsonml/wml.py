@@ -147,3 +147,19 @@ def delete_model(client: APIClient, name: str):
 
 def update_model(client: APIClient):
     raise NotImplementedError()
+
+
+def set_deployment_space(client: APIClient, deployment_space_name: str) -> APIClient:
+    try:
+        space_uid = get_space_id_from_space_name(
+            client=client,
+            space_name=deployment_space_name,
+        )
+        client.set.default_space(space_uid=space_uid)
+
+    except Exception as e:
+        raise MlflowException(
+            f"Failed to set deployment space {deployment_space_name}", f"{e}"
+        )
+
+    return client

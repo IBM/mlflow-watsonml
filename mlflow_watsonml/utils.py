@@ -239,3 +239,16 @@ def print_package_specifications(
     )["entity"]["software_specification"]["software_configuration"]["included_packages"]
 
     print(tabulate(pkg_specs, headers="keys"))
+
+
+def list_endpoints(client: APIClient) -> List[Dict]:
+    endpoints = client.spaces.get_details(get_all=True)["resources"]
+    return endpoints
+
+
+def get_endpoint(client: APIClient, endpoint: str):
+    deployment_space_id = get_space_id_from_space_name(
+        client=client, space_name=endpoint
+    )
+    endpoint_details = client.spaces.get_details(space_id=deployment_space_id)
+    return endpoint_details
