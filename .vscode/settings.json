@@ -1,5 +1,5 @@
 {
-    "python.formatting.provider": "black",
+    "python.formatting.provider": "none",
     "editor.formatOnSave": true,
     "files.autoSave": "onFocusChange",
     // "python.linting.pylintEnabled": false,
@@ -33,5 +33,8 @@
     },
     "[plaintext]": {
         "editor.formatOnSave": false
+    },
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.black-formatter"
     }
 }
