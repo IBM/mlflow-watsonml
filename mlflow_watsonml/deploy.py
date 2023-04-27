@@ -170,6 +170,13 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
             software_spec_type
         )
 
+        custom_packages: Optional[List[Dict]] = config.get("custom_packages", None)
+
+        if custom_packages is not None:
+            software_spec_uid = add_custom_packages(
+                client, software_spec_uid, custom_packages
+            )
+
         model_description = config.get("model_description", "no explanation")
         model_type = config.get("model_type", DEFAULT_MODEL_TYPE)
 

@@ -163,3 +163,43 @@ def set_deployment_space(client: APIClient, deployment_space_name: str) -> APICl
         )
 
     return client
+
+
+def add_custom_packages(
+    client: APIClient, software_spec_uid: str, custom_packages: List[Dict]
+) -> str:
+    base_sw_spec_uid = software_spec_uid
+
+    meta_prop_sw_spec = {
+        client.software_specifications.ConfigurationMetaNames.NAME: "custom_sw_spec",
+        client.software_specifications.ConfigurationMetaNames.DESCRIPTION: "Custom Software specification",
+        client.software_specifications.ConfigurationMetaNames.BASE_SOFTWARE_SPECIFICATION: {
+            "guid": base_sw_spec_uid
+        },
+    }
+
+    sw_spec_details = client.software_specifications.store(meta_props=meta_prop_sw_spec)
+    software_spec_uid = client.software_specifications.get_uid(sw_spec_details)
+
+    for custom_package in custom_packages:
+        meta_prop_pkg_extn = {
+            client.package_extensions.ConfigurationMetaNames.NAME: custom_package.get(
+                "name", "some package name"
+            ),
+            client.package_extensions.ConfigurationMetaNames.DESCRIPTION: custom_package.get(
+                "description", "some package description"
+            ),
+            client.package_extensions.ConfigurationMetaNames.TYPE: "pip_zip",
+        }
+
+        pkg_extn_details = client.package_extensions.store(
+            meta_props=meta_prop_pkg_extn, file_path=custom_package.get("file")
+        )
+
+        pkg_extn_uid = client.package_extensions.get_uid(pkg_extn_details)
+
+        client.software_specifications.add_package_extension(
+            software_spec_uid, pkg_extn_uid
+        )
+
+    return software_spec_uid
