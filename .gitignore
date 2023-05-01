@@ -130,3 +130,6 @@ dmypy.json
 
 # mlflow model dir
 mlruns/
+
+# playground file
+playground.py
