@@ -1,9 +1,12 @@
+import logging
 from typing import Any, Dict
 
 from ibm_watson_machine_learning.client import APIClient
 from mlflow.exceptions import MlflowException
 
 from mlflow_watsonml.utils import *
+
+LOGGER = logging.getLogger(__name__)
 
 
 def store_model(
@@ -52,6 +55,8 @@ def store_model(
             feature_names=None,
             label_column_names=None,
         )
+        LOGGER.info(model_details)
+        LOGGER.info(f"Stored model {name} in the repository.")
 
     except Exception as e:
         raise MlflowException(e)
@@ -102,6 +107,9 @@ def deploy_model(
 
         deployment_details["name"] = deployment_details["entity"]["name"]
 
+        LOGGER.info(deployment_details)
+        LOGGER.info(f"Created {'batch' if batch else 'online'} deployment {name}")
+
     except Exception as e:
         raise MlflowException(e)
 
@@ -123,6 +131,8 @@ def delete_deployment(client: APIClient, name: str):
             client=client, deployment_name=name
         )
         client.deployments.delete(deployment_uid=deployment_id)
+
+        LOGGER.info(f"Deleted deployment {name} with id {deployment_id}.")
     except Exception as e:
         raise MlflowException(e)
 
@@ -141,6 +151,8 @@ def delete_model(client: APIClient, name: str):
         model_id = get_model_id_from_model_name(client=client, model_name=name)
         client.repository.delete(artifact_uid=model_id)
 
+        LOGGER.info(f"Deleted model {name} with id {model_id} from the repository.")
+
     except Exception as e:
         raise MlflowException(e)
 
@@ -156,6 +168,8 @@ def set_deployment_space(client: APIClient, deployment_space_name: str) -> APICl
             space_name=deployment_space_name,
         )
         client.set.default_space(space_uid=space_uid)
+
+        LOGGER.info(f"Set deployment space to {deployment_space_name}")
 
     except Exception as e:
         raise MlflowException(

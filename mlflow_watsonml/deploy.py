@@ -103,13 +103,19 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
                 client = set_deployment_space(
                     client=client, deployment_space_name=endpoint
                 )
-                LOGGER.info(f"Set deployment space to {endpoint}")
             except Exception as e:
                 raise MlflowException(e)
 
             return client
 
         elif self.endpoint is not None:
+            try:
+                client = set_deployment_space(
+                    client=client, deployment_space_name=self.endpoint
+                )
+            except Exception as e:
+                raise MlflowException(e)
+
             return client
 
         else:
@@ -166,7 +172,7 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         model_object = mlflow.sklearn.load_model(model_uri=model_uri)
 
         software_spec_type = config.get("software_spec_type", DEFAULT_SOFTWARE_SPEC)
-        software_spec_uid = client.software_specifications.get_uid_by_name(
+        software_spec_uid = client.software_specifications.get_id_by_name(
             software_spec_type
         )
 
