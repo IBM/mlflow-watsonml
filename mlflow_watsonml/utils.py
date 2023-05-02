@@ -252,3 +252,28 @@ def get_endpoint(client: APIClient, endpoint: str):
     )
     endpoint_details = client.spaces.get_details(space_id=deployment_space_id)
     return endpoint_details
+
+
+def list_software_specs(client: APIClient) -> List[Dict]:
+    sw_specs = client.software_specifications.get_details()["resources"]
+    return sw_specs
+
+
+def get_software_spec(client: APIClient, sw_spec: str) -> Dict:
+    sw_specs = list_software_specs(client=client)
+
+    try:
+        return next(item for item in sw_specs if item["metadata"]["name"] == sw_spec)[
+            "metadata"
+        ]["id"]
+    except StopIteration as _:
+        raise MlflowException(
+            message=f"Software Specifiction - {sw_spec} not found",
+            error_code=ENDPOINT_NOT_FOUND,
+        )
+
+
+def software_spec_exists(client: APIClient, sw_spec: str) -> bool:
+    sw_specs = list_software_specs(client=client)
+
+    return any(item for item in sw_specs if item["metadata"]["name"] == sw_spec)
