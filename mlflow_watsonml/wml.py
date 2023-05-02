@@ -179,41 +179,48 @@ def set_deployment_space(client: APIClient, deployment_space_name: str) -> APICl
     return client
 
 
-def add_custom_packages(
-    client: APIClient, software_spec_uid: str, custom_packages: List[Dict]
-) -> str:
-    base_sw_spec_uid = software_spec_uid
+def create_custom_software_spec(
+    client: APIClient,
+    name: str,
+    base_sofware_spec: str,
+    custom_packages: List[Dict[str, str]],
+):
+    if software_spec_exists(client=client, sw_spec=name):
+        raise MlflowException(
+            f"""Software spec {name} already exists. 
+            Please delete the software spec or create one with another name."""
+        )
+
+    base_software_spec_id = client.software_specifications.get_id_by_name(
+        base_sofware_spec
+    )
 
     meta_prop_sw_spec = {
-        client.software_specifications.ConfigurationMetaNames.NAME: "custom_sw_spec",
-        client.software_specifications.ConfigurationMetaNames.DESCRIPTION: "Custom Software specification",
+        client.software_specifications.ConfigurationMetaNames.NAME: name,
         client.software_specifications.ConfigurationMetaNames.BASE_SOFTWARE_SPECIFICATION: {
-            "guid": base_sw_spec_uid
+            "guid": base_software_spec_id
         },
     }
 
     sw_spec_details = client.software_specifications.store(meta_props=meta_prop_sw_spec)
-    software_spec_uid = client.software_specifications.get_uid(sw_spec_details)
+    software_spec_id = client.software_specifications.get_uid(sw_spec_details)
 
     for custom_package in custom_packages:
         meta_prop_pkg_extn = {
-            client.package_extensions.ConfigurationMetaNames.NAME: custom_package.get(
-                "name", "some package name"
-            ),
-            client.package_extensions.ConfigurationMetaNames.DESCRIPTION: custom_package.get(
-                "description", "some package description"
-            ),
+            client.package_extensions.ConfigurationMetaNames.NAME: custom_package[
+                "name"
+            ],
             client.package_extensions.ConfigurationMetaNames.TYPE: "pip_zip",
         }
 
         pkg_extn_details = client.package_extensions.store(
-            meta_props=meta_prop_pkg_extn, file_path=custom_package.get("file")
+            meta_props=meta_prop_pkg_extn, file_path=custom_package["file"]
         )
 
-        pkg_extn_uid = client.package_extensions.get_uid(pkg_extn_details)
+        pkg_extn_id = client.package_extensions.get_id(pkg_extn_details)
 
         client.software_specifications.add_package_extension(
-            software_spec_uid, pkg_extn_uid
+            software_spec_id, pkg_extn_id
         )
 
-    return software_spec_uid
+    return software_spec_id
