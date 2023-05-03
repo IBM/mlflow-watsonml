@@ -277,3 +277,8 @@ def software_spec_exists(client: APIClient, sw_spec: str) -> bool:
     sw_specs = list_software_specs(client=client)
 
     return any(item for item in sw_specs if item["metadata"]["name"] == sw_spec)
+
+
+def delete_sw_spec(client, name):
+    sw_spec_id = client.software_specifications.get_id_by_name(name)
+    client.software_specifications.delete(sw_spec_id)

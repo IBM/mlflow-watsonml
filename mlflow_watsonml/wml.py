@@ -184,12 +184,16 @@ def create_custom_software_spec(
     name: str,
     base_sofware_spec: str,
     custom_packages: List[Dict[str, str]],
+    rewrite: bool = False,
 ):
     if software_spec_exists(client=client, sw_spec=name):
-        raise MlflowException(
-            f"""Software spec {name} already exists. 
-            Please delete the software spec or create one with another name."""
-        )
+        if rewrite:
+            delete_sw_spec(client=client, name=name)
+        else:
+            raise MlflowException(
+                f"""Software spec {name} already exists. 
+                Please delete the software spec or create one with another name."""
+            )
 
     try:
         base_software_spec_id = client.software_specifications.get_id_by_name(
@@ -228,8 +232,7 @@ def create_custom_software_spec(
 
     except Exception as e:
         if software_spec_exists(client=client, sw_spec=name):
-            sw_spec_id = client.software_specifications.get_id_by_name(name)
-            client.software_specifications.delete(sw_spec_id)
+            delete_sw_spec(client, name)
 
         raise MlflowException(e)
 
