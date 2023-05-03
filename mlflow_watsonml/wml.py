@@ -191,36 +191,46 @@ def create_custom_software_spec(
             Please delete the software spec or create one with another name."""
         )
 
-    base_software_spec_id = client.software_specifications.get_id_by_name(
-        base_sofware_spec
-    )
+    try:
+        base_software_spec_id = client.software_specifications.get_id_by_name(
+            base_sofware_spec
+        )
 
-    meta_prop_sw_spec = {
-        client.software_specifications.ConfigurationMetaNames.NAME: name,
-        client.software_specifications.ConfigurationMetaNames.BASE_SOFTWARE_SPECIFICATION: {
-            "guid": base_software_spec_id
-        },
-    }
-
-    sw_spec_details = client.software_specifications.store(meta_props=meta_prop_sw_spec)
-    software_spec_id = client.software_specifications.get_uid(sw_spec_details)
-
-    for custom_package in custom_packages:
-        meta_prop_pkg_extn = {
-            client.package_extensions.ConfigurationMetaNames.NAME: custom_package[
-                "name"
-            ],
-            client.package_extensions.ConfigurationMetaNames.TYPE: "pip_zip",
+        meta_prop_sw_spec = {
+            client.software_specifications.ConfigurationMetaNames.NAME: name,
+            client.software_specifications.ConfigurationMetaNames.BASE_SOFTWARE_SPECIFICATION: {
+                "guid": base_software_spec_id
+            },
         }
 
-        pkg_extn_details = client.package_extensions.store(
-            meta_props=meta_prop_pkg_extn, file_path=custom_package["file"]
+        sw_spec_details = client.software_specifications.store(
+            meta_props=meta_prop_sw_spec
         )
+        software_spec_id = client.software_specifications.get_uid(sw_spec_details)
 
-        pkg_extn_id = client.package_extensions.get_id(pkg_extn_details)
+        for custom_package in custom_packages:
+            meta_prop_pkg_extn = {
+                client.package_extensions.ConfigurationMetaNames.NAME: custom_package[
+                    "name"
+                ],
+                client.package_extensions.ConfigurationMetaNames.TYPE: "pip_zip",
+            }
 
-        client.software_specifications.add_package_extension(
-            software_spec_id, pkg_extn_id
-        )
+            pkg_extn_details = client.package_extensions.store(
+                meta_props=meta_prop_pkg_extn, file_path=custom_package["file"]
+            )
+
+            pkg_extn_id = client.package_extensions.get_id(pkg_extn_details)
+
+            client.software_specifications.add_package_extension(
+                software_spec_id, pkg_extn_id
+            )
+
+    except Exception as e:
+        if software_spec_exists(client=client, sw_spec=name):
+            sw_spec_id = client.software_specifications.get_id_by_name(name)
+            client.software_specifications.delete(sw_spec_id)
+
+        raise MlflowException(e)
 
     return software_spec_id
