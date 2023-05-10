@@ -190,10 +190,14 @@ def create_custom_software_spec(
         if rewrite:
             delete_sw_spec(client=client, name=name)
         else:
-            raise MlflowException(
-                f"""Software spec {name} already exists. 
-                Please delete the software spec or create one with another name."""
+            LOGGER.warn(
+                f"""Software spec {name} already exists."""
+                """skipping software spec creation."""
+                """restart with rewrite=True if software spec needs to be updated."""
             )
+
+            software_spec_id = client.software_specifications.get_id_by_name(name)
+            return software_spec_id
 
     try:
         base_software_spec_id = client.software_specifications.get_id_by_name(
