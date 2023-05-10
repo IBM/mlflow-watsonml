@@ -1,3 +1,5 @@
+import os
+import zipfile
 from typing import Dict, List
 
 from ibm_watson_machine_learning.client import APIClient
@@ -282,3 +284,14 @@ def software_spec_exists(client: APIClient, sw_spec: str) -> bool:
 def delete_sw_spec(client, name):
     sw_spec_id = client.software_specifications.get_id_by_name(name)
     client.software_specifications.delete(sw_spec_id)
+
+
+def is_zipfile(file_path: str) -> bool:
+    if not os.path.isfile(file_path):
+        return False
+
+    try:
+        with zipfile.ZipFile(file_path) as zf:
+            return zf.testzip() is None
+    except zipfile.BadZipFile:
+        return False

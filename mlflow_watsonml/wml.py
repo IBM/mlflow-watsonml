@@ -213,6 +213,10 @@ def create_custom_software_spec(
         software_spec_id = client.software_specifications.get_uid(sw_spec_details)
 
         for custom_package in custom_packages:
+            if not is_zipfile(custom_package["file"]):
+                raise MlflowException(
+                    f"{custom_package['file']} is not a valid zip file."
+                )
             meta_prop_pkg_extn = {
                 client.package_extensions.ConfigurationMetaNames.NAME: custom_package[
                     "name"
