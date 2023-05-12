@@ -185,7 +185,7 @@ def create_custom_software_spec(
     base_sofware_spec: str,
     custom_packages: List[Dict[str, str]],
     rewrite: bool = False,
-):
+) -> str:
     if software_spec_exists(client=client, sw_spec=name):
         if rewrite:
             delete_sw_spec(client=client, name=name)
@@ -239,9 +239,14 @@ def create_custom_software_spec(
             )
 
     except Exception as e:
+        LOGGER.exception(e)
         if software_spec_exists(client=client, sw_spec=name):
             delete_sw_spec(client, name)
 
         raise MlflowException(e)
+
+    LOGGER.info(
+        f"Successfully created {name} software specification with ID {software_spec_id}"
+    )
 
     return software_spec_id

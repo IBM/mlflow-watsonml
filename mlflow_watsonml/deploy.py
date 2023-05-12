@@ -1,5 +1,4 @@
 import logging
-import sys
 from typing import Dict, List, Optional
 
 import mlflow
@@ -386,3 +385,22 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
 
     def get_endpoint(self, endpoint):
         return get_endpoint(client=self.get_wml_client(), endpoint=endpoint)
+
+    def create_custom_wml_spec(
+        self,
+        name: str,
+        base_software_spec: str,
+        custom_packages: List[Dict[str, str]],
+        rewrite: bool = False,
+        endpoint: Optional[str] = None,
+    ):
+        client = self.get_wml_client(endpoint=endpoint)
+        software_spec_id = create_custom_software_spec(
+            client=client,
+            name=name,
+            base_sofware_spec=base_software_spec,
+            custom_packages=custom_packages,
+            rewrite=rewrite,
+        )
+
+        return software_spec_id
