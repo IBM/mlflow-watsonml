@@ -185,15 +185,19 @@ def create_custom_software_spec(
     base_sofware_spec: str,
     custom_packages: List[Dict[str, str]],
     rewrite: bool = False,
-):
+) -> str:
     if software_spec_exists(client=client, sw_spec=name):
         if rewrite:
             delete_sw_spec(client=client, name=name)
         else:
-            raise MlflowException(
-                f"""Software spec {name} already exists. 
-                Please delete the software spec or create one with another name."""
+            LOGGER.warn(
+                f"""Software spec {name} already exists."""
+                """skipping software spec creation."""
+                """restart with rewrite=True if software spec needs to be updated."""
             )
+
+            software_spec_id = client.software_specifications.get_id_by_name(name)
+            return software_spec_id
 
     try:
         base_software_spec_id = client.software_specifications.get_id_by_name(
@@ -213,6 +217,10 @@ def create_custom_software_spec(
         software_spec_id = client.software_specifications.get_uid(sw_spec_details)
 
         for custom_package in custom_packages:
+            if not is_zipfile(custom_package["file"]):
+                raise MlflowException(
+                    f"{custom_package['file']} is not a valid zip file."
+                )
             meta_prop_pkg_extn = {
                 client.package_extensions.ConfigurationMetaNames.NAME: custom_package[
                     "name"
@@ -231,9 +239,14 @@ def create_custom_software_spec(
             )
 
     except Exception as e:
+        LOGGER.exception(e)
         if software_spec_exists(client=client, sw_spec=name):
             delete_sw_spec(client, name)
 
         raise MlflowException(e)
+
+    LOGGER.info(
+        f"Successfully created {name} software specification with ID {software_spec_id}"
+    )
 
     return software_spec_id
