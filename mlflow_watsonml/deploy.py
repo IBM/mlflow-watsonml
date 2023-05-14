@@ -181,7 +181,7 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         model_description = config.get("model_description", "no explanation")
         model_type = config.get("model_type", DEFAULT_MODEL_TYPE)
 
-        model_details = store_model(
+        model_details, revision_id = store_model(
             client=client,
             model_object=model_object,
             software_spec_uid=software_spec_uid,
@@ -203,6 +203,7 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
             client=client,
             name=name,
             model_id=model_id,
+            revision_id=revision_id,
             batch=batch,
         )
 
@@ -244,14 +245,23 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         Dict
             deployment details dictionary
         """
-        self.delete_deployment(name=name, config=config, endpoint=endpoint)
+        client = self.get_wml_client(endpoint=endpoint)
 
-        deployment_details = self.create_deployment(
-            name=name,
-            model_uri=model_uri,
-            flavor=flavor,
-            config=config,
-            endpoint=endpoint,
+        if flavor == "sklearn":
+            model_object = mlflow.sklearn.load_model(model_uri=model_uri)
+        else:
+            raise NotImplementedError(f"flavor {flavor} is not implemented")
+
+        model_details, revision_id = update_model(
+            client=client, name=name, updated_model_object=model_object
+        )
+
+        model_id = get_model_id_from_model_details(
+            client=client, model_details=model_details
+        )
+
+        deployment_details = update_deployment(
+            client=client, name=name, model_id=model_id, revision_id=revision_id
         )
 
         return deployment_details

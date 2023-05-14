@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
 
 from ibm_watson_machine_learning.client import APIClient
 from mlflow.exceptions import MlflowException
@@ -16,7 +16,7 @@ def store_model(
     name: str,
     model_description: str,
     model_type: str,
-) -> Dict:
+) -> Tuple[Dict, Dict]:
     """Store model_object in a WML repository
 
     Parameters
@@ -36,8 +36,8 @@ def store_model(
 
     Returns
     -------
-    Dict
-        model details dictionary
+    Tuple[Dict, str]
+        model details dictionary, model revision
     """
     model_props = {
         client.repository.ModelMetaNames.NAME: name,
@@ -58,14 +58,23 @@ def store_model(
         LOGGER.info(model_details)
         LOGGER.info(f"Stored model {name} in the repository.")
 
+        revision_details = client.repository.create_model_revision(
+            model_uid=get_model_id_from_model_details(
+                client=client, model_details=model_details
+            )
+        )
+        rev_id = revision_details["metadata"].get("rev")
+        LOGGER.info(revision_details)
+        LOGGER.info(f"Created model revision for mode {name} and version {rev_id}")
+
     except Exception as e:
         raise MlflowException(e)
 
-    return model_details
+    return (model_details, rev_id)
 
 
 def deploy_model(
-    client: APIClient, name: str, model_id: str, batch: bool = False
+    client: APIClient, name: str, model_id: str, revision_id: str, batch: bool = False
 ) -> Dict:
     """Create a new WML deployment
 
@@ -92,11 +101,19 @@ def deploy_model(
             client.deployments.ConfigurationMetaNames.NAME: name,
             client.deployments.ConfigurationMetaNames.BATCH: {},
             client.deployments.ConfigurationMetaNames.HARDWARE_SPEC: {},
+            client.deployments.ConfigurationMetaNames.ASSET: {
+                "id": model_id,
+                "rev": revision_id,
+            },
         }
     else:
         deployment_props = {
             client.deployments.ConfigurationMetaNames.NAME: name,
             client.deployments.ConfigurationMetaNames.ONLINE: {},
+            client.deployments.ConfigurationMetaNames.ASSET: {
+                "id": model_id,
+                "rev": revision_id,
+            },
         }
 
     try:
@@ -157,8 +174,45 @@ def delete_model(client: APIClient, name: str):
         raise MlflowException(e)
 
 
-def update_model(client: APIClient):
-    raise NotImplementedError()
+def update_model(
+    client: APIClient,
+    name: str,
+    updated_model_object: Any,
+):
+    try:
+        model_id = get_model_id_from_model_name(client=client, model_name=name)
+        updated_model_details = client.repository.update_model(
+            model_uid=model_id,
+            updated_meta_props=None,
+            update_model=updated_model_object,
+        )
+        revised_model_details = client.repository.create_model_revision(model_id)
+
+    except Exception as e:
+        raise MlflowException(e)
+
+    return (updated_model_details, revised_model_details)
+
+
+def update_deployment(
+    client: APIClient,
+    name: str,
+    model_id: str,
+    revision_id: str,
+):
+    deployment_id = get_deployment_id_from_deployment_name(
+        client=client, deployment_name=name
+    )
+    metadata = {
+        client.deployments.ConfigurationMetaNames.ASSET: {
+            "id": model_id,
+            "rev": revision_id,
+        }
+    }
+
+    updated_deployment = client.deployments.update(
+        deployment_uid=deployment_id, changes=metadata
+    )
 
 
 def set_deployment_space(client: APIClient, deployment_space_name: str) -> APIClient:
