@@ -126,7 +126,7 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         self,
         name: str,
         model_uri: str,
-        flavor: Optional[str] = None,
+        flavor: str = "sklearn",
         config: Optional[Dict] = None,
         endpoint: Optional[str] = None,
     ) -> Dict:
@@ -168,7 +168,10 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
                 error_code=INVALID_PARAMETER_VALUE,
             )
 
-        model_object = mlflow.sklearn.load_model(model_uri=model_uri)
+        if flavor == "sklearn":
+            model_object = mlflow.sklearn.load_model(model_uri=model_uri)
+        else:
+            raise NotImplementedError(f"flavor {flavor} is not implemented")
 
         software_spec_type = config.get("software_spec_type", DEFAULT_SOFTWARE_SPEC)
         software_spec_uid = client.software_specifications.get_id_by_name(
