@@ -30,6 +30,8 @@ def test_create_deployment():
     run_id = get_linear_lr()
     model_uri = f"runs:/{run_id}/model"
 
+    client.delete_deployment("test_deployment")
+
     client.create_deployment(
         name="test_deployment", model_uri=model_uri, flavor="sklearn", endpoint="DWML1"
     )
