@@ -178,7 +178,6 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
             software_spec_type
         )
 
-        model_description = config.get("model_description", "no explanation")
         model_type = config.get("model_type", DEFAULT_MODEL_TYPE)
 
         model_details, revision_id = store_model(
@@ -186,7 +185,6 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
             model_object=model_object,
             software_spec_uid=software_spec_uid,
             name=name,
-            model_description=model_description,
             model_type=model_type,
         )
 

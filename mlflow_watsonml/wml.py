@@ -14,7 +14,6 @@ def store_model(
     model_object: Any,
     software_spec_uid: str,
     name: str,
-    model_description: str,
     model_type: str,
 ) -> Tuple[Dict, Dict]:
     """Store model_object in a WML repository
@@ -29,8 +28,6 @@ def store_model(
         uid of software specification
     name : str
         name of the deployment
-    model_description : str
-        model description
     model_type : str
         type of model
 
@@ -41,7 +38,6 @@ def store_model(
     """
     model_props = {
         client.repository.ModelMetaNames.NAME: name,
-        client.repository.ModelMetaNames.DESCRIPTION: model_description,
         client.repository.ModelMetaNames.SOFTWARE_SPEC_UID: software_spec_uid,
         client.repository.ModelMetaNames.TYPE: model_type,
     }
