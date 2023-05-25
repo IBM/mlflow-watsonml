@@ -245,10 +245,14 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         """
         client = self.get_wml_client(endpoint=endpoint)
 
-        if flavor == "sklearn":
-            model_object = mlflow.sklearn.load_model(model_uri=model_uri)
+        # if `model_uri` is provided, create a new model object
+        if model_uri is not None:
+            if flavor == "sklearn":
+                model_object = mlflow.sklearn.load_model(model_uri=model_uri)
+            else:
+                raise NotImplementedError(f"flavor {flavor} is not implemented")
         else:
-            raise NotImplementedError(f"flavor {flavor} is not implemented")
+            model_object = None
 
         model_details, revision_id = update_model(
             client=client, name=name, updated_model_object=model_object

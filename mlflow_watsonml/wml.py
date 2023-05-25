@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 from ibm_watson_machine_learning.client import APIClient
 from mlflow.exceptions import MlflowException
@@ -173,13 +173,14 @@ def delete_model(client: APIClient, name: str):
 def update_model(
     client: APIClient,
     name: str,
-    updated_model_object: Any,
+    updated_model_config: Optional[Dict] = None,
+    updated_model_object: Optional[Any] = None,
 ):
     try:
         model_id = get_model_id_from_model_name(client=client, model_name=name)
         updated_model_details = client.repository.update_model(
             model_uid=model_id,
-            updated_meta_props=None,
+            updated_meta_props=updated_model_config,
             update_model=updated_model_object,
         )
         revised_model_details = client.repository.create_model_revision(model_id)
