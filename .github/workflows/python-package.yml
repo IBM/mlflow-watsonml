@@ -43,5 +43,6 @@ jobs:
         URL: ${{ secrets.URL }}
         INSTANCE_ID: ${{ secrets.INSTANCE_ID }}
         VERSION: ${{ secrets.VERSION }}
+        DEPLOYMENT_SPACE_NAME: ${{ secrets.DEPLOYMENT_SPACE_NAME }}
       run: |
         pytest

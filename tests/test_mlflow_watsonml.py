@@ -33,5 +33,5 @@ def test_create_deployment():
     client.delete_deployment("test_deployment")
 
     client.create_deployment(
-        name="test_deployment", model_uri=model_uri, flavor="sklearn", endpoint="DWML1"
+        name="test_deployment", model_uri=model_uri, flavor="sklearn"
     )
