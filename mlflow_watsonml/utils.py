@@ -1,3 +1,5 @@
+import os
+import zipfile
 from typing import Dict, List
 
 from ibm_watson_machine_learning.client import APIClient
@@ -239,3 +241,57 @@ def print_package_specifications(
     )["entity"]["software_specification"]["software_configuration"]["included_packages"]
 
     print(tabulate(pkg_specs, headers="keys"))
+
+
+def list_endpoints(client: APIClient) -> List[Dict]:
+    endpoints = client.spaces.get_details(get_all=True)["resources"]
+    return endpoints
+
+
+def get_endpoint(client: APIClient, endpoint: str):
+    deployment_space_id = get_space_id_from_space_name(
+        client=client, space_name=endpoint
+    )
+    endpoint_details = client.spaces.get_details(space_id=deployment_space_id)
+    return endpoint_details
+
+
+def list_software_specs(client: APIClient) -> List[Dict]:
+    sw_specs = client.software_specifications.get_details()["resources"]
+    return sw_specs
+
+
+def get_software_spec(client: APIClient, sw_spec: str) -> Dict:
+    sw_specs = list_software_specs(client=client)
+
+    try:
+        return next(item for item in sw_specs if item["metadata"]["name"] == sw_spec)[
+            "metadata"
+        ]["id"]
+    except StopIteration as _:
+        raise MlflowException(
+            message=f"Software Specifiction - {sw_spec} not found",
+            error_code=ENDPOINT_NOT_FOUND,
+        )
+
+
+def software_spec_exists(client: APIClient, sw_spec: str) -> bool:
+    sw_specs = list_software_specs(client=client)
+
+    return any(item for item in sw_specs if item["metadata"]["name"] == sw_spec)
+
+
+def delete_sw_spec(client, name):
+    sw_spec_id = client.software_specifications.get_id_by_name(name)
+    client.software_specifications.delete(sw_spec_id)
+
+
+def is_zipfile(file_path: str) -> bool:
+    if not os.path.isfile(file_path):
+        return False
+
+    try:
+        with zipfile.ZipFile(file_path) as zf:
+            return zf.testzip() is None
+    except zipfile.BadZipFile:
+        return False

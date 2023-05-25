@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from typing import Dict, Optional
 
@@ -21,11 +22,25 @@ PASSWORD = "password"
 INSTANCE_ID = "instance_id"
 VERSION = "version"
 
+LOGGER = logging.getLogger(__name__)
+
+WML_CREDENTIALS = "wml_credentials"
+DEPLOYMENT_SPACE_NAME = "deployment_space_name"
+WML_CREDENTIALS_FILE = "wml_credentials_file"
+APIKEY = "apikey"
+LOCATION = "location"
+URL = "url"
+TOKEN = "token"
+USERNAME = "username"
+PASSWORD = "password"
+INSTANCE_ID = "instance_id"
+VERSION = "version"
+
 
 class Config(dict):
     def __init__(self, config: Optional[Dict[str, str]] = None):
         """
-        Initializes constants from .env file and environment variables
+        Initializes constants from input `config`, `.env` file or environment variables
         """
         super().__init__()
 
