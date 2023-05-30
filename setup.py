@@ -22,5 +22,5 @@ setup(
     install_requires=install_requires,
     extras_require={"dev": ["ipython", "black", "pytest", "build", "wheel", "twine"]},
     entry_points={"mlflow.deployments": "watsonml=mlflow_watsonml.deploy"},
-    python_requires=">=3.9",
+    python_requires=">=3.8",
 )
