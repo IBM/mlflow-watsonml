@@ -261,7 +261,7 @@ def list_software_specs(client: APIClient) -> List[Dict]:
     return sw_specs
 
 
-def get_software_spec(client: APIClient, sw_spec: str) -> Dict:
+def get_software_spec(client: APIClient, sw_spec: str) -> str:
     sw_specs = list_software_specs(client=client)
 
     try:
@@ -295,3 +295,20 @@ def is_zipfile(file_path: str) -> bool:
             return zf.testzip() is None
     except zipfile.BadZipFile:
         return False
+
+
+def get_software_spec_from_deployment_name(
+    client: APIClient, deployment_name: str
+) -> str:
+    try:
+        model_id = get_model_id_from_model_name(
+            client=client, model_name=deployment_name
+        )
+        software_spec_id = client.repository.get_details(artifact_uid=model_id)[
+            "entity"
+        ]["software_spec"]["id"]
+
+        return software_spec_id
+
+    except Exception as e:
+        raise MlflowException(e)

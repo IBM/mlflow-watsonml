@@ -254,8 +254,23 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         else:
             model_object = None
 
+        updated_model_config = {}
+
+        if config is not None and "software_spec_type" in config.keys():
+            if get_software_spec(
+                client=client, sw_spec=config["software_spec_type"]
+            ) != get_software_spec_from_deployment_name(
+                client=client, deployment_name=name
+            ):
+                updated_model_config["software_spec_type"] = config[
+                    "software_spec_type"
+                ]
+
         model_details, revision_id = update_model(
-            client=client, name=name, updated_model_object=model_object
+            client=client,
+            name=name,
+            updated_model_object=model_object,
+            updated_model_config=updated_model_config,
         )
 
         model_id = get_model_id_from_model_details(
