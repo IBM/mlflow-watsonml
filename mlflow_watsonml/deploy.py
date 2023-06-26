@@ -54,27 +54,22 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         super().__init__(target_uri)
 
         self.wml_config = Config(config=config)
-        self.connect(
-            wml_credentials=self.wml_config["wml_credentials"],
-            endpoint=self.wml_config["deployment_space_name"],
-        )
+        self.connect(wml_credentials=self.wml_config["wml_credentials"])
 
-    def connect(self, wml_credentials: Dict, endpoint: Optional[str] = None) -> None:
+    def connect(self, wml_credentials: Dict) -> None:
         """Connect to WML APIClient and set the default deployment space
 
         Parameters
         ----------
         wml_credentials : Dict
             WML Credentials
-        endpoint : Optional[str]
-            Deployment space name
         """
         try:
             client = APIClient(wml_credentials=wml_credentials)
-            self.endpoint = endpoint
             LOGGER.info("Connected to WML Client successfully")
 
         except Exception as e:
+            LOGGER.exception(e)
             raise MlflowException(
                 "Could not establish connection, check wml credentials." f"{e}",
                 error_code=ENDPOINT_NOT_FOUND,
@@ -82,13 +77,13 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
 
         self._wml_client = client
 
-    def get_wml_client(self, endpoint: Optional[str] = None) -> APIClient:
+    def get_wml_client(self, endpoint: str) -> APIClient:
         """Returns WML API client
 
         Parameters
         ----------
-        endpoint : Optional[str], optional
-            deployment space name, by default None
+        endpoint : str
+            deployment space name
 
         Returns
         -------
@@ -97,38 +92,22 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         """
         client = self._wml_client
 
-        if endpoint is not None:
-            try:
-                client = set_deployment_space(
-                    client=client, deployment_space_name=endpoint
-                )
-            except Exception as e:
-                raise MlflowException(e)
+        try:
+            client = set_deployment_space(client=client, deployment_space_name=endpoint)
+            LOGGER.info(f"Using deployment space {endpoint}")
+        except Exception as e:
+            LOGGER.exception(e)
+            raise MlflowException(e)
 
-            return client
-
-        elif self.endpoint is not None:
-            try:
-                client = set_deployment_space(
-                    client=client, deployment_space_name=self.endpoint
-                )
-            except Exception as e:
-                raise MlflowException(e)
-
-            return client
-
-        else:
-            raise MlflowException(
-                f"Deployment space name not set. Please set it using `endpoint` parameter"
-            )
+        return client
 
     def create_deployment(
         self,
         name: str,
         model_uri: str,
-        flavor: str = "sklearn",
-        config: Optional[Dict] = None,
-        endpoint: Optional[str] = None,
+        flavor: str,
+        config: Dict,
+        endpoint: str,
     ) -> Dict:
         """Deploy a model at `model_uri` to a WML target. this method blocks until
         deployment completes (i.e. until it's possible to perform inference with the deployment).
@@ -142,21 +121,18 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
             name of the deployment
         model_uri : str
             URI (local or remote) of the model
-        flavor : Optional[str], optional
-            flavor of the deployed model, by default None
-        config : Optional[Dict], optional
-            configuration parameters, by default None
-        endpoint : Optional[str], optional
-            deployment space name, by default None
+        flavor : str
+            flavor of the deployed model
+        config : Dict
+            configuration parameters
+        endpoint : str
+            deployment space name
 
         Returns
         -------
         Dict
             deployment details dictionary
         """
-        if config is None:
-            config = dict()
-
         client = self.get_wml_client(endpoint=endpoint)
 
         # check if a deployment by that name exists
