@@ -13,7 +13,7 @@ def store_model(
     client: APIClient,
     model_object: Any,
     software_spec_uid: str,
-    name: str,
+    model_name: str,
     model_type: str,
 ) -> Tuple[Dict, Dict]:
     """Store model_object in a WML repository
@@ -26,8 +26,8 @@ def store_model(
         artifact object
     software_spec_uid : str
         uid of software specification
-    name : str
-        name of the deployment
+    model_name : str
+        name of the model
     model_type : str
         type of model
 
@@ -37,7 +37,7 @@ def store_model(
         model details dictionary, model revision
     """
     model_props = {
-        client.repository.ModelMetaNames.NAME: name,
+        client.repository.ModelMetaNames.NAME: model_name,
         client.repository.ModelMetaNames.SOFTWARE_SPEC_UID: software_spec_uid,
         client.repository.ModelMetaNames.TYPE: model_type,
     }
@@ -52,7 +52,7 @@ def store_model(
             label_column_names=None,
         )
         LOGGER.info(model_details)
-        LOGGER.info(f"Stored model {name} in the repository.")
+        LOGGER.info(f"Stored model {model_name} in the repository.")
 
         revision_details = client.repository.create_model_revision(
             model_uid=get_model_id_from_model_details(
@@ -61,7 +61,9 @@ def store_model(
         )
         rev_id = revision_details["metadata"].get("rev")
         LOGGER.info(revision_details)
-        LOGGER.info(f"Created model revision for mode {name} and version {rev_id}")
+        LOGGER.info(
+            f"Created model revision for model {model_name} and version {rev_id}"
+        )
 
     except Exception as e:
         raise MlflowException(e)
@@ -118,7 +120,7 @@ def deploy_model(
             meta_props=deployment_props,
         )
 
-        deployment_details["name"] = deployment_details["entity"]["name"]
+        deployment_details["name"] = deployment_details["metadata"]["name"]
 
         LOGGER.info(deployment_details)
         LOGGER.info(f"Created {'batch' if batch else 'online'} deployment {name}")
@@ -140,30 +142,14 @@ def delete_deployment(client: APIClient, name: str):
         name of the deployment to delete
     """
     try:
-        deployment_id = get_deployment_id_from_deployment_name(
-            client=client, deployment_name=name
-        )
+        deployment_details = get_deployment(client=client, name=name)
+
+        deployment_id = deployment_details["metadata"]["id"]
         client.deployments.delete(deployment_uid=deployment_id)
-
         LOGGER.info(f"Deleted deployment {name} with id {deployment_id}.")
-    except Exception as e:
-        raise MlflowException(e)
 
-
-def delete_model(client: APIClient, name: str):
-    """Delete a model from WML repository
-
-    Parameters
-    ----------
-    client : APIClient
-        WML client
-    name : str
-        name of the deployment to delete
-    """
-    try:
-        model_id = get_model_id_from_model_name(client=client, model_name=name)
+        model_id = deployment_details["entity"]["asset"]["id"]
         client.repository.delete(artifact_uid=model_id)
-
         LOGGER.info(f"Deleted model {name} with id {model_id} from the repository.")
 
     except Exception as e:
@@ -172,23 +158,34 @@ def delete_model(client: APIClient, name: str):
 
 def update_model(
     client: APIClient,
-    name: str,
-    updated_model_config: Optional[Dict] = None,
+    deployment_name: str,
+    updated_model_config: Dict = {},
     updated_model_object: Optional[Any] = None,
 ):
     try:
-        model_id = get_model_id_from_model_name(client=client, model_name=name)
+        deployment_details = get_deployment(client=client, name=deployment_name)
+
+        model_id = deployment_details["entity"]["asset"]["id"]
+        model_rev = int(deployment_details["entity"]["asset"]["rev"]) + 1
+
+        if updated_model_object is not None:
+            updated_model_config[
+                client.repository.ModelMetaNames.NAME
+            ] = f"{deployment_name}_v{model_rev}"
+
         updated_model_details = client.repository.update_model(
             model_uid=model_id,
             updated_meta_props=updated_model_config,
             update_model=updated_model_object,
         )
+
         revised_model_details = client.repository.create_model_revision(model_id)
+        revision_id = revised_model_details["metadata"]["rev"]
 
     except Exception as e:
         raise MlflowException(e)
 
-    return (updated_model_details, revised_model_details)
+    return (updated_model_details, revision_id)
 
 
 def update_deployment(
@@ -211,6 +208,8 @@ def update_deployment(
         deployment_uid=deployment_id, changes=metadata
     )
 
+    LOGGER.info(updated_deployment)
+
 
 def set_deployment_space(client: APIClient, deployment_space_name: str) -> APIClient:
     try:
@@ -220,7 +219,9 @@ def set_deployment_space(client: APIClient, deployment_space_name: str) -> APICl
         )
         client.set.default_space(space_uid=space_uid)
 
-        LOGGER.info(f"Set deployment space to {deployment_space_name}")
+        LOGGER.info(
+            f"Set deployment space to {deployment_space_name} with space id - {space_uid}"
+        )
 
     except Exception as e:
         raise MlflowException(
@@ -237,7 +238,7 @@ def create_custom_software_spec(
     custom_packages: List[Dict[str, str]],
     rewrite: bool = False,
 ) -> str:
-    if software_spec_exists(client=client, sw_spec=name):
+    if software_spec_exists(client=client, name=name):
         if rewrite:
             delete_sw_spec(client=client, name=name)
         else:
@@ -291,7 +292,7 @@ def create_custom_software_spec(
 
     except Exception as e:
         LOGGER.exception(e)
-        if software_spec_exists(client=client, sw_spec=name):
+        if software_spec_exists(client=client, name=name):
             delete_sw_spec(client, name)
 
         raise MlflowException(e)

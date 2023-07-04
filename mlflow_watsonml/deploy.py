@@ -1,7 +1,7 @@
 import logging
 from typing import Dict, List, Optional
 
-import mlflow
+import numpy as np
 import pandas as pd
 from ibm_watson_machine_learning.client import APIClient
 from mlflow.deployments import BaseDeploymentClient
@@ -17,7 +17,6 @@ LOGGER.setLevel(logging.INFO)
 
 # CONSTANTS
 DEFAULT_SOFTWARE_SPEC = "runtime-22.2-py3.10"
-DEFAULT_MODEL_TYPE = "scikit-learn_1.1"
 
 
 def target_help():
@@ -136,31 +135,26 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         client = self.get_wml_client(endpoint=endpoint)
 
         # check if a deployment by that name exists
-        if deployment_exists(client=client, name=name) or model_exists(
-            client=client, name=name
-        ):
+        if deployment_exists(client=client, name=name):
             raise MlflowException(
                 f"Deplyment {name} already exists. Use `update_deployment()` or use a different name",
                 error_code=INVALID_PARAMETER_VALUE,
             )
 
-        if flavor == "sklearn":
-            model_object = mlflow.sklearn.load_model(model_uri=model_uri)
-        else:
-            raise NotImplementedError(f"flavor {flavor} is not implemented")
+        model_object, model_type = load_model(model_uri=model_uri, flavor=flavor)
 
         software_spec_type = config.get("software_spec_type", DEFAULT_SOFTWARE_SPEC)
         software_spec_uid = client.software_specifications.get_id_by_name(
             software_spec_type
         )
 
-        model_type = config.get("model_type", DEFAULT_MODEL_TYPE)
+        model_name = config.get("model_name", f"{name}_v1")
 
         model_details, revision_id = store_model(
             client=client,
             model_object=model_object,
             software_spec_uid=software_spec_uid,
-            name=name,
+            model_name=model_name,
             model_type=model_type,
         )
 
@@ -221,20 +215,17 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         """
         client = self.get_wml_client(endpoint=endpoint)
 
+        updated_model_config = {}
+
         # if `model_uri` is provided, create a new model object
         if model_uri is not None:
-            if flavor == "sklearn":
-                model_object = mlflow.sklearn.load_model(model_uri=model_uri)
-            else:
-                raise NotImplementedError(f"flavor {flavor} is not implemented")
+            model_object, _ = load_model(model_uri=model_uri, flavor=flavor)
         else:
             model_object = None
 
-        updated_model_config = {}
-
         if config is not None and "software_spec_type" in config.keys():
             if get_software_spec(
-                client=client, sw_spec=config["software_spec_type"]
+                client=client, name=config["software_spec_type"]
             ) != get_software_spec_from_deployment_name(
                 client=client, deployment_name=name
             ):
@@ -244,7 +235,7 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
 
         model_details, revision_id = update_model(
             client=client,
-            name=name,
+            deployment_name=name,
             updated_model_object=model_object,
             updated_model_config=updated_model_config,
         )
@@ -281,9 +272,6 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
 
         if deployment_exists(client=client, name=name):
             delete_deployment(client=client, name=name)
-
-        if model_exists(client=client, name=name):
-            delete_model(client=client, name=name)
 
     def list_deployments(self, endpoint: Optional[str] = None):
         """List deployments. This method returns an unpaginated list of all deployments
@@ -327,10 +315,14 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
     def predict(
         self,
         deployment_name: str,
-        inputs: Optional[pd.DataFrame] = None,
-        endpoint: Optional[str] = None,
-    ):
+        inputs: Union[pd.DataFrame, np.ndarray, List[Any], Dict[str, Any]],
+        endpoint: str,
+    ) -> Union[np.ndarray, pd.DataFrame, pd.Series, List]:
         """Compute predictions on inputs using the specified deployment
+
+        predict(
+            model_input:
+        ) ->
 
         Parameters
         ----------

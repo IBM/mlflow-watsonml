@@ -1,10 +1,18 @@
+import logging
 import os
 import zipfile
-from typing import Dict, List
+from typing import Any, Dict, List, Union
 
+import mlflow
 from ibm_watson_machine_learning.client import APIClient
 from mlflow.exceptions import ENDPOINT_NOT_FOUND, MlflowException
 from tabulate import tabulate
+
+LOGGER = logging.getLogger(__name__)
+FLAVOR_MODEL_TYPE_MAP = {
+    "sklearn": "scikit-learn_1.1",
+    "onnx": "pytorch-onnx_1.12",
+}
 
 
 def list_models(client: APIClient) -> List[Dict]:
@@ -45,7 +53,7 @@ def list_deployments(client: APIClient) -> List[Dict]:
 
     # `name` is a required key in each deployment
     for deployment in deployments:
-        deployment["name"] = deployment["entity"]["name"]
+        deployment["name"] = deployment["metadata"]["name"]
 
     return deployments
 
@@ -68,7 +76,7 @@ def get_deployment(client: APIClient, name: str) -> Dict:
     deployments = list_deployments(client=client)
 
     try:
-        return next(item for item in deployments if item["entity"]["name"] == name)
+        return next(item for item in deployments if item["metadata"]["name"] == name)
 
     except StopIteration as _:
         raise MlflowException(
@@ -261,27 +269,27 @@ def list_software_specs(client: APIClient) -> List[Dict]:
     return sw_specs
 
 
-def get_software_spec(client: APIClient, sw_spec: str) -> str:
+def get_software_spec(client: APIClient, name: str) -> str:
     sw_specs = list_software_specs(client=client)
 
     try:
-        return next(item for item in sw_specs if item["metadata"]["name"] == sw_spec)[
+        return next(item for item in sw_specs if item["metadata"]["name"] == name)[
             "metadata"
         ]["id"]
     except StopIteration as _:
         raise MlflowException(
-            message=f"Software Specifiction - {sw_spec} not found",
+            message=f"Software Specifiction - {name} not found",
             error_code=ENDPOINT_NOT_FOUND,
         )
 
 
-def software_spec_exists(client: APIClient, sw_spec: str) -> bool:
+def software_spec_exists(client: APIClient, name: str) -> bool:
     sw_specs = list_software_specs(client=client)
 
-    return any(item for item in sw_specs if item["metadata"]["name"] == sw_spec)
+    return any(item for item in sw_specs if item["metadata"]["name"] == name)
 
 
-def delete_sw_spec(client, name):
+def delete_sw_spec(client: APIClient, name: str):
     sw_spec_id = client.software_specifications.get_id_by_name(name)
     client.software_specifications.delete(sw_spec_id)
 
@@ -311,4 +319,18 @@ def get_software_spec_from_deployment_name(
         return software_spec_id
 
     except Exception as e:
+        LOGGER.exception(e)
         raise MlflowException(e)
+
+
+def load_model(model_uri: str, flavor: str) -> Union[Any, str]:
+    if flavor not in FLAVOR_MODEL_TYPE_MAP.keys():
+        raise NotImplementedError(
+            f"""Flavor {flavor} is not implemented. 
+            Please specify a flavor from {FLAVOR_MODEL_TYPE_MAP.keys()}"""
+        )
+
+    model_object = getattr(mlflow, flavor).load_model(model_uri=model_uri)
+    model_type = FLAVOR_MODEL_TYPE_MAP[flavor]
+
+    return model_object, model_type

@@ -1,10 +1,10 @@
 from setuptools import find_packages, setup
 
+from _version import version
+
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-with open("VERSION", "r") as fh:
-    version = fh.read().strip()
 
 with open("requirements.txt", "r") as fh:
     install_requires = fh.readlines()
@@ -23,4 +23,6 @@ setup(
     extras_require={"dev": ["ipython", "black", "pytest", "build", "wheel", "twine"]},
     entry_points={"mlflow.deployments": "watsonml=mlflow_watsonml.deploy"},
     python_requires=">=3.8",
+    use_scm_version=True,
+    setup_requires=["setuptools_scm"],
 )
