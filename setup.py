@@ -1,7 +1,5 @@
 from setuptools import find_packages, setup
 
-from _version import version
-
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
@@ -11,7 +9,6 @@ with open("requirements.txt", "r") as fh:
 
 setup(
     name="mlflow-watsonml",
-    version=version,
     description="WatsonML MLflow deployment plugin",
     long_description=long_description,
     long_description_content_type="text/markdown",
