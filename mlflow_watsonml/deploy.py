@@ -70,7 +70,7 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         except Exception as e:
             LOGGER.exception(e)
             raise MlflowException(
-                "Could not establish connection, check wml credentials." f"{e}",
+                "Could not establish connection, check WML credentials." f"{e}",
                 error_code=ENDPOINT_NOT_FOUND,
             )
 
@@ -89,14 +89,9 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         APIClient
             WML client
         """
-        client = self._wml_client
-
-        try:
-            client = set_deployment_space(client=client, deployment_space_name=endpoint)
-            LOGGER.info(f"Using deployment space {endpoint}")
-        except Exception as e:
-            LOGGER.exception(e)
-            raise MlflowException(e)
+        client = set_deployment_space(
+            client=self._wml_client, deployment_space_name=endpoint
+        )
 
         return client
 
@@ -328,11 +323,10 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         ----------
         deployment_name : str
             Name of deployment to predict against
-        inputs : pd.DataFrame, optional
+        inputs : pd.DataFrame
             Input data (or arguments) to pass to the deployment for inference,
-            by default Optional[pd.DataFrame]
-        endpoint : Optional[str], optional
-            deployment space name, by default None
+        endpoint : str
+            deployment space name
 
         Returns
         -------

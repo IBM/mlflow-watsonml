@@ -224,6 +224,7 @@ def set_deployment_space(client: APIClient, deployment_space_name: str) -> APICl
         )
 
     except Exception as e:
+        LOGGER.exception(e)
         raise MlflowException(
             f"Failed to set deployment space {deployment_space_name}", f"{e}"
         )

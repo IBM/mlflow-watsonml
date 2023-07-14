@@ -3,7 +3,6 @@ import logging
 import os
 from typing import Dict, Optional
 
-from dotenv import load_dotenv
 from mlflow import MlflowException
 from mlflow.protos.databricks_pb2 import INVALID_PARAMETER_VALUE
 
@@ -35,7 +34,6 @@ class Config(dict):
                 Attempting to load credentials from environment variables."""
             )
 
-            load_dotenv()
             config = {}
 
             if "DEPLOYMENT_SPACE_NAME" in os.environ.keys():

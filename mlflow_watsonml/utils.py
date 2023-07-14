@@ -143,7 +143,7 @@ def get_space_id_from_space_name(client: APIClient, space_name: str) -> str:
     str
         space id
     """
-    spaces = client.spaces.get_details()["resources"]
+    spaces = client.spaces.get_details(get_all=True)["resources"]
 
     try:
         return next(item for item in spaces if item["entity"]["name"] == space_name)[
@@ -308,19 +308,12 @@ def is_zipfile(file_path: str) -> bool:
 def get_software_spec_from_deployment_name(
     client: APIClient, deployment_name: str
 ) -> str:
-    try:
-        model_id = get_model_id_from_model_name(
-            client=client, model_name=deployment_name
-        )
-        software_spec_id = client.repository.get_details(artifact_uid=model_id)[
-            "entity"
-        ]["software_spec"]["id"]
+    model_id = get_model_id_from_model_name(client=client, model_name=deployment_name)
+    software_spec_id = client.repository.get_details(artifact_uid=model_id)["entity"][
+        "software_spec"
+    ]["id"]
 
-        return software_spec_id
-
-    except Exception as e:
-        LOGGER.exception(e)
-        raise MlflowException(e)
+    return software_spec_id
 
 
 def load_model(model_uri: str, flavor: str) -> Union[Any, str]:
