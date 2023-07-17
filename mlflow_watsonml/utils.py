@@ -79,8 +79,10 @@ def get_deployment(client: APIClient, name: str) -> Dict:
         return next(item for item in deployments if item["metadata"]["name"] == name)
 
     except StopIteration as _:
+        message = f"no deployment by the name {name} exists"
+        LOGGER.exception(message)
         raise MlflowException(
-            message=f"no deployment by the name {name} exists",
+            message=message,
             error_code=ENDPOINT_NOT_FOUND,
         )
 
@@ -123,9 +125,9 @@ def get_model_id_from_model_name(client: APIClient, model_name: str) -> str:
             "id"
         ]
     except StopIteration as _:
-        raise MlflowException(
-            message=f"model {model_name} not found", error_code=ENDPOINT_NOT_FOUND
-        )
+        message = f"model {model_name} not found"
+        LOGGER.exception(message)
+        raise MlflowException(message=message, error_code=ENDPOINT_NOT_FOUND)
 
 
 def get_space_id_from_space_name(client: APIClient, space_name: str) -> str:
@@ -150,9 +152,9 @@ def get_space_id_from_space_name(client: APIClient, space_name: str) -> str:
             "metadata"
         ]["id"]
     except StopIteration as _:
-        raise MlflowException(
-            message=f"space {space_name} not found", error_code=ENDPOINT_NOT_FOUND
-        )
+        message = f"space {space_name} not found"
+        LOGGER.exception(message)
+        raise MlflowException(message=message, error_code=ENDPOINT_NOT_FOUND)
 
 
 def get_model_id_from_model_details(client: APIClient, model_details: Dict) -> str:
