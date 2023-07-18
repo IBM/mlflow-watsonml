@@ -61,6 +61,7 @@ def test_config_input_env_var_pass(create_correct_credentials):
 def test_config_input_env_var_fail():
     with pytest.MonkeyPatch.context() as mp:
         mp.delenv("WML_CREDENTIALS_FILE", raising=False)
+        mp.delenv("URL", raising=False)
         mp.setenv("APIKEY", "apikey")
 
         with pytest.raises(MlflowException):
