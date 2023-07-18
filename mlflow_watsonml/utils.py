@@ -277,10 +277,12 @@ def get_software_spec(client: APIClient, name: str) -> str:
     try:
         return next(item for item in sw_specs if item["metadata"]["name"] == name)[
             "metadata"
-        ]["id"]
+        ]["asset_id"]
     except StopIteration as _:
+        message = f"Software Specifiction - {name} not found"
+        LOGGER.exception(message)
         raise MlflowException(
-            message=f"Software Specifiction - {name} not found",
+            message=message,
             error_code=ENDPOINT_NOT_FOUND,
         )
 
@@ -310,10 +312,11 @@ def is_zipfile(file_path: str) -> bool:
 def get_software_spec_from_deployment_name(
     client: APIClient, deployment_name: str
 ) -> str:
-    model_id = get_model_id_from_model_name(client=client, model_name=deployment_name)
-    software_spec_id = client.repository.get_details(artifact_uid=model_id)["entity"][
-        "software_spec"
-    ]["id"]
+    deployment = get_deployment(client=client, name=deployment_name)
+    model_id = deployment["entity"]["asset"]["id"]
+    software_spec_id = client.repository.get_model_details(model_uid=model_id)[
+        "entity"
+    ]["software_spec"]["id"]
 
     return software_spec_id
 

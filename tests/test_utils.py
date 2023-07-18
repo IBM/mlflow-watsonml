@@ -1,3 +1,5 @@
+import zipfile
+
 import pytest
 from mlflow import MlflowException
 from pytest import LogCaptureFixture, MonkeyPatch
@@ -218,4 +220,135 @@ def test_get_endpoint_exception(caplog: LogCaptureFixture):
 
 
 def test_list_software_specs():
-    ...
+    client = WatsonMLDeploymentClient(config=MOCK_WML_CREDENTIALS).get_wml_client(
+        endpoint="space_1"
+    )
+
+    sw_specs = list_software_specs(client=client)
+
+    assert isinstance(sw_specs, list)
+    assert len(sw_specs) == 2
+    assert sw_specs[0]["metadata"]["name"] == "sw_spec_1"
+    assert sw_specs[0]["metadata"]["asset_id"] == "id_of_sw_spec_1"
+    assert sw_specs[1]["metadata"]["name"] == "sw_spec_2"
+    assert sw_specs[1]["metadata"]["asset_id"] == "id_of_sw_spec_2"
+
+
+def test_get_sw_spec_success():
+    client = WatsonMLDeploymentClient(config=MOCK_WML_CREDENTIALS).get_wml_client(
+        endpoint="space_1"
+    )
+
+    sw_spec = get_software_spec(client=client, name="sw_spec_1")
+
+    assert isinstance(sw_spec, str)
+    assert sw_spec == "id_of_sw_spec_1"
+
+
+def test_get_sw_spec_exception(caplog: LogCaptureFixture):
+    client = WatsonMLDeploymentClient(config=MOCK_WML_CREDENTIALS).get_wml_client(
+        endpoint="space_1"
+    )
+
+    with pytest.raises(MlflowException):
+        sw_spec = get_software_spec(client=client, name="sw_spec_01")
+
+    assert "Software Specifiction - sw_spec_01 not found" in caplog.text
+
+
+def test_software_spec_exists():
+    client = WatsonMLDeploymentClient(config=MOCK_WML_CREDENTIALS).get_wml_client(
+        endpoint="space_1"
+    )
+
+    assert software_spec_exists(client=client, name="sw_spec_1")
+    assert not software_spec_exists(client=client, name="sw_spec_01")
+
+
+def test_delete_sw_spec(caplog: LogCaptureFixture):
+    client = WatsonMLDeploymentClient(config=MOCK_WML_CREDENTIALS).get_wml_client(
+        endpoint="space_1"
+    )
+    assert software_spec_exists(client=client, name="sw_spec_1")
+
+    delete_sw_spec(client=client, name="sw_spec_1")
+
+    assert not software_spec_exists(client=client, name="sw_spec_1")
+
+
+@pytest.fixture
+def zip_file_path(tmp_path):
+    # Create a temporary zip file for testing
+    file_path = tmp_path / "test.zip"
+    with zipfile.ZipFile(file_path, "w") as zf:
+        zf.writestr("file1.txt", "Hello, World!")
+        zf.writestr("file2.txt", "Model Factory")
+
+    yield str(file_path)
+
+    # Clean up the temporary file
+    os.remove(file_path)
+
+
+def test_is_zipfile_valid(zip_file_path):
+    assert is_zipfile(zip_file_path) is True
+
+
+def test_is_zipfile_invalid(zip_file_path):
+    # Modify the file extension to make it invalid
+    invalid_file_path = zip_file_path.replace(".zip", ".txt")
+    assert is_zipfile(invalid_file_path) is False
+
+
+def test_is_zipfile_nonexistent():
+    non_existent_file_path = "/path/to/nonexistent.zip"
+    assert is_zipfile(non_existent_file_path) is False
+
+
+def test_is_zipfile_corrupt_zip(zip_file_path):
+    # Overwrite the zip file with a corrupt file
+    with open(zip_file_path, "w") as f:
+        f.write("corrupt file data")
+
+    assert is_zipfile(zip_file_path) is False
+
+
+def test_get_software_spec_from_deployment_name_success():
+    client = WatsonMLDeploymentClient(config=MOCK_WML_CREDENTIALS).get_wml_client(
+        endpoint="space_1"
+    )
+
+    sw_spec = get_software_spec_from_deployment_name(
+        client=client, deployment_name="deployment_1"
+    )
+
+    assert sw_spec == "id_of_sw_spec_1"
+
+
+def test_get_software_spec_from_deployment_name_exception(caplog: LogCaptureFixture):
+    client = WatsonMLDeploymentClient(config=MOCK_WML_CREDENTIALS).get_wml_client(
+        endpoint="space_1"
+    )
+
+    with pytest.raises(MlflowException):
+        sw_spec = get_software_spec_from_deployment_name(
+            client=client, deployment_name="deployment_3"
+        )
+
+    assert f"no deployment by the name deployment_3 exists"
+
+
+def test_load_model_success(monkeypatch: MonkeyPatch):
+    monkeypatch.setattr(mlflow.sklearn, "load_model", lambda model_uri: 0)
+
+    model_obj, model_type = load_model(model_uri="some_uri", flavor="sklearn")
+
+    assert model_obj == 0
+    assert model_type == "scikit-learn_1.1"
+
+
+def test_load_model_exception(monkeypatch: MonkeyPatch, caplog: LogCaptureFixture):
+    monkeypatch.setattr(mlflow.sklearn, "load_model", lambda model_uri: 0)
+
+    with pytest.raises(NotImplementedError):
+        _, _ = load_model(model_uri="some_uri", flavor="xyz")

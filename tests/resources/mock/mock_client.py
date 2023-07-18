@@ -28,8 +28,14 @@ class MockDeployments(Deployments):
     def __init__(self, client):
         self._client = client
         self._deployments = [
-            {"metadata": {"name": "deployment_1", "id": "id_of_deployment_1"}},
-            {"metadata": {"name": "deployment_2", "id": "id_of_deployment_2"}},
+            {
+                "entity": {"asset": {"id": "id_of_model_1", "rev": "1"}},
+                "metadata": {"name": "deployment_1", "id": "id_of_deployment_1"},
+            },
+            {
+                "entity": {"asset": {"id": "id_of_model_2", "rev": "1"}},
+                "metadata": {"name": "deployment_2", "id": "id_of_deployment_2"},
+            },
         ]
 
     @staticmethod
@@ -90,9 +96,39 @@ class MockRepository(Repository):
     def __init__(self, client):
         self._client = client
         self._models = [
-            {"entity": {}, "metadata": {"name": "model_1", "id": "id_of_model_1"}},
-            {"entity": {}, "metadata": {"name": "model_2", "id": "id_of_model_2"}},
-            {"entity": {}, "metadata": {"name": "model_3", "id": "id_of_model_3"}},
+            {
+                "entity": {
+                    "hybrid_pipeline_software_specs": [],
+                    "software_spec": {
+                        "id": "id_of_sw_spec_1",
+                        "name": "sw_spec_1",
+                    },
+                    "type": "scikit-learn_1.1",
+                },
+                "metadata": {"name": "model_1", "id": "id_of_model_1"},
+            },
+            {
+                "entity": {
+                    "hybrid_pipeline_software_specs": [],
+                    "software_spec": {
+                        "id": "id_of_sw_spec_1",
+                        "name": "sw_spec_1",
+                    },
+                    "type": "scikit-learn_1.1",
+                },
+                "metadata": {"name": "model_2", "id": "id_of_model_2"},
+            },
+            {
+                "entity": {
+                    "hybrid_pipeline_software_specs": [],
+                    "software_spec": {
+                        "id": "id_of_sw_spec_2",
+                        "name": "sw_spec_2",
+                    },
+                    "type": "scikit-learn_1.1",
+                },
+                "metadata": {"name": "model_3", "id": "id_of_model_3"},
+            },
         ]
 
     def store_model(
@@ -149,13 +185,25 @@ class MockRepository(Repository):
         if get_all:
             return {"resources": self._models}
 
+        model_details = None
+
+        for model in self._models:
+            if model["metadata"]["id"] == model_uid:
+                model_details = model
+                break
+
+        if model_details is None:
+            raise Exception(f"Model with id - {model_uid} not found")
+
+        return model_details
+
 
 class MockSet(Set):
     def __init__(self, client: MockAPIClient):
         self._client = client
 
     def default_space(self, space_uid):
-        for space in self._client.spaces._spaces["resources"]:
+        for space in self._client.spaces._spaces:
             if space["metadata"]["id"] == space_uid:
                 return "SUCCESS"
 
@@ -165,7 +213,30 @@ class MockSet(Set):
 class MockSwSpec(SwSpec):
     def __init__(self, client):
         self._client = client
-        self._sw_specs = {"space_1": "id_of_space_1", "space_2": "id_of_space_2"}
+        self._sw_specs = [
+            {
+                "metadata": {"name": "sw_spec_1", "asset_id": "id_of_sw_spec_1"},
+                "entity": {},
+            },
+            {
+                "metadata": {"name": "sw_spec_2", "asset_id": "id_of_sw_spec_2"},
+                "entity": {},
+            },
+        ]
 
     def get_id_by_name(self, sw_spec_name):
-        return self._sw_specs.get(sw_spec_name, "Not Found")
+        for sw_spec in self._sw_specs:
+            if sw_spec["metadata"]["name"] == sw_spec_name:
+                return sw_spec["metadata"]["asset_id"]
+
+        return "Not found"
+
+    def get_details(self, sw_spec_uid=None, state_info=False):
+        if sw_spec_uid is None:
+            return {"resources": self._sw_specs}
+
+    def delete(self, sw_spec_uid):
+        for idx, sw_spec in enumerate(self._sw_specs):
+            if sw_spec["metadata"]["asset_id"] == sw_spec_uid:
+                self._sw_specs.pop(idx)
+                return "SUCCESS"
