@@ -9,6 +9,7 @@ from mlflow.exceptions import MlflowException
 from mlflow.protos.databricks_pb2 import ENDPOINT_NOT_FOUND, INVALID_PARAMETER_VALUE
 
 from mlflow_watsonml.config import Config
+from mlflow_watsonml.store import *
 from mlflow_watsonml.utils import *
 from mlflow_watsonml.wml import *
 
@@ -136,36 +137,29 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
                 error_code=INVALID_PARAMETER_VALUE,
             )
 
-        model_object, model_type = load_model(model_uri=model_uri, flavor=flavor)
-
         software_spec_type = config.get("software_spec_type", DEFAULT_SOFTWARE_SPEC)
         software_spec_uid = client.software_specifications.get_id_by_name(
             software_spec_type
         )
 
-        model_name = config.get("model_name", f"{name}_v1")
-
-        model_details, revision_id = store_model(
+        artifact_id, revision_id = store_artifact(
             client=client,
-            model_object=model_object,
+            model_uri=model_uri,
+            flavor=flavor,
             software_spec_uid=software_spec_uid,
-            model_name=model_name,
-            model_type=model_type,
         )
 
-        model_id = get_model_id_from_model_details(
-            client=client, model_details=model_details
-        )
+        artifact_details = client.repository.get_details(artifact_uid=artifact_id)
 
-        LOGGER.info("Stored Model Details = %s", model_details)
-        LOGGER.info("Stored Model UID = %s", model_id)
+        LOGGER.info("Stored Artifact Details = %s", artifact_details)
+        LOGGER.info("Stored Artifact UID = %s", artifact_id)
 
         batch = config.get("batch", False)
 
-        deployment_details = deploy_model(
+        deployment_details = deploy(
             client=client,
             name=name,
-            model_id=model_id,
+            artifact_id=artifact_id,
             revision_id=revision_id,
             batch=batch,
         )
@@ -336,9 +330,7 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         client = self.get_wml_client(endpoint=endpoint)
 
         scoring_payload = {
-            self._wml_client.deployments.ScoringMetaNames.INPUT_DATA: [
-                {"values": inputs}
-            ]
+            client.deployments.ScoringMetaNames.INPUT_DATA: [{"values": inputs}]
         }
 
         deployment_id = get_deployment_id_from_deployment_name(

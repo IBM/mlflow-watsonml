@@ -9,10 +9,6 @@ from mlflow.exceptions import ENDPOINT_NOT_FOUND, MlflowException
 from tabulate import tabulate
 
 LOGGER = logging.getLogger(__name__)
-FLAVOR_MODEL_TYPE_MAP = {
-    "sklearn": "scikit-learn_1.1",
-    "onnx": "pytorch-onnx_1.12",
-}
 
 
 def list_models(client: APIClient) -> List[Dict]:
@@ -102,7 +98,9 @@ def get_deployment_id_from_deployment_name(
     str
         deployment id
     """
-    return get_deployment(client=client, name=deployment_name)["metadata"]["id"]
+    return client.deployments.get_id(
+        get_deployment(client=client, name=deployment_name)
+    )
 
 
 def get_model_id_from_model_name(client: APIClient, model_name: str) -> str:
@@ -319,16 +317,3 @@ def get_software_spec_from_deployment_name(
     ]["software_spec"]["id"]
 
     return software_spec_id
-
-
-def load_model(model_uri: str, flavor: str) -> Union[Any, str]:
-    if flavor not in FLAVOR_MODEL_TYPE_MAP.keys():
-        raise NotImplementedError(
-            f"""Flavor {flavor} is not implemented. 
-            Please specify a flavor from {FLAVOR_MODEL_TYPE_MAP.keys()}"""
-        )
-
-    model_object = getattr(mlflow, flavor).load_model(model_uri=model_uri)
-    model_type = FLAVOR_MODEL_TYPE_MAP[flavor]
-
-    return model_object, model_type
