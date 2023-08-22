@@ -1,12 +1,11 @@
 import logging
 import os
 import zipfile
-from typing import Any, Dict, List, Union
+from typing import Dict, List
 
-import mlflow
+import yaml
 from ibm_watson_machine_learning.client import APIClient
 from mlflow.exceptions import ENDPOINT_NOT_FOUND, MlflowException
-from tabulate import tabulate
 
 LOGGER = logging.getLogger(__name__)
 
@@ -30,6 +29,51 @@ def list_models(client: APIClient) -> List[Dict]:
         model["name"] = model["metadata"]["name"]
 
     return models
+
+
+def get_model_id_from_model_name(client: APIClient, model_name: str) -> str:
+    """Returns model ID from model name
+
+    Parameters
+    ----------
+    model_name : str
+        model name
+
+    Returns
+    -------
+    str
+        model id
+    """
+    models = list_models(client=client)
+
+    try:
+        return next(item for item in models if item["name"] == model_name)["metadata"][
+            "id"
+        ]
+    except StopIteration as _:
+        message = f"model {model_name} not found"
+        LOGGER.exception(message)
+        raise MlflowException(message=message, error_code=ENDPOINT_NOT_FOUND)
+
+
+def model_exists(client: APIClient, name: str) -> bool:
+    """Checks if a model by the given name exists
+
+    Parameters
+    ----------
+    client : APIClient
+        WML client
+    name : str
+        name of the model
+
+    Returns
+    -------
+    bool
+        True if the model exists else False
+    """
+    models = list_models(client=client)
+
+    return any(item for item in models if item["name"] == name)
 
 
 def list_deployments(client: APIClient) -> List[Dict]:
@@ -72,7 +116,7 @@ def get_deployment(client: APIClient, name: str) -> Dict:
     deployments = list_deployments(client=client)
 
     try:
-        return next(item for item in deployments if item["metadata"]["name"] == name)
+        return next(item for item in deployments if item["name"] == name)
 
     except StopIteration as _:
         message = f"no deployment by the name {name} exists"
@@ -103,29 +147,23 @@ def get_deployment_id_from_deployment_name(
     )
 
 
-def get_model_id_from_model_name(client: APIClient, model_name: str) -> str:
-    """Returns model ID from model name
+def deployment_exists(client: APIClient, name: str) -> bool:
+    """Checks if a deployment by the given name exists
 
     Parameters
     ----------
-    model_name : str
-        model name
+    client : APIClient
+        WML client
+    name : str
+        name of the deployment
 
     Returns
     -------
-    str
-        model id
+    bool
+        True if the deployment exists else False
     """
-    models = list_models(client=client)
-
-    try:
-        return next(item for item in models if item["name"] == model_name)["metadata"][
-            "id"
-        ]
-    except StopIteration as _:
-        message = f"model {model_name} not found"
-        LOGGER.exception(message)
-        raise MlflowException(message=message, error_code=ENDPOINT_NOT_FOUND)
+    deployments = list_deployments(client=client)
+    return any(item for item in deployments if item["name"] == name)
 
 
 def get_space_id_from_space_name(client: APIClient, space_name: str) -> str:
@@ -155,102 +193,6 @@ def get_space_id_from_space_name(client: APIClient, space_name: str) -> str:
         raise MlflowException(message=message, error_code=ENDPOINT_NOT_FOUND)
 
 
-def get_model_id_from_model_details(client: APIClient, model_details: Dict) -> str:
-    """Return model ID from model details dictionary
-
-    Parameters
-    ----------
-    model_details : Dict
-        model details dictionary
-
-    Returns
-    -------
-    str
-        model id
-    """
-    model_id = client.repository.get_model_id(model_details=model_details)
-    return model_id
-
-
-def get_deployment_id_from_deployment_details(
-    client: APIClient, deployment_details: Dict
-) -> str:
-    """Return deployment ID from deployment details dictionary
-
-    Parameters
-    ----------
-    client : APIClient
-        WML client
-    deployment_details : Dict
-        deployment details dictionary
-
-    Returns
-    -------
-    str
-        deployment id
-    """
-    deployment_id = client.deployments.get_id(deployment_details=deployment_details)
-    return deployment_id
-
-
-def deployment_exists(client: APIClient, name: str) -> bool:
-    """Checks if a deployment by the given name exists
-
-    Parameters
-    ----------
-    client : APIClient
-        WML client
-    name : str
-        name of the deployment
-
-    Returns
-    -------
-    bool
-        True if the deployment exists else False
-    """
-    deployments = list_deployments(client=client)
-    return any(item for item in deployments if item["name"] == name)
-
-
-def model_exists(client: APIClient, name: str) -> bool:
-    """Checks if a model by the given name exists
-
-    Parameters
-    ----------
-    client : APIClient
-        WML client
-    name : str
-        name of the model
-
-    Returns
-    -------
-    bool
-        True if the model exists else False
-    """
-    models = list_models(client=client)
-
-    return any(item for item in models if item["name"] == name)
-
-
-def print_package_specifications(
-    client: APIClient, software_spec: str = "runtime-22.2-py3.10"
-) -> None:
-    """Print the package spec along with version to use as reference for creating an env
-
-    Parameters
-    ----------
-    client : APIClient
-        WML Client
-    software_spec : str, optional
-        Software Spec, by default "runtime-22.2-py3.10"
-    """
-    pkg_specs = client.software_specifications.get_details(
-        client.software_specifications.get_id_by_name(software_spec)
-    )["entity"]["software_specification"]["software_configuration"]["included_packages"]
-
-    print(tabulate(pkg_specs, headers="keys"))
-
-
 def list_endpoints(client: APIClient) -> List[Dict]:
     endpoints = client.spaces.get_details(get_all=True)["resources"]
     return endpoints
@@ -270,33 +212,82 @@ def list_software_specs(client: APIClient) -> List[Dict]:
 
 
 def get_software_spec(client: APIClient, name: str) -> str:
-    sw_specs = list_software_specs(client=client)
-
-    try:
-        return next(item for item in sw_specs if item["metadata"]["name"] == name)[
-            "metadata"
-        ]["asset_id"]
-    except StopIteration as _:
-        message = f"Software Specifiction - {name} not found"
-        LOGGER.exception(message)
-        raise MlflowException(
-            message=message,
-            error_code=ENDPOINT_NOT_FOUND,
-        )
+    software_spec_id = client.software_specifications.get_id_by_name(sw_spec_name=name)
+    return software_spec_id
 
 
 def software_spec_exists(client: APIClient, name: str) -> bool:
-    sw_specs = list_software_specs(client=client)
+    """Check if a given software specification exists.
 
-    return any(item for item in sw_specs if item["metadata"]["name"] == name)
+    Parameters
+    ----------
+    client : APIClient
+        WML client
+    name : str
+        name of the software specification
+
+    Returns
+    -------
+    bool
+        True if the software specification exists, else False
+    """
+    software_spec = client.software_specifications.get_id_by_name(sw_spec_name=name)
+    return software_spec != "Not Found"
 
 
-def delete_sw_spec(client: APIClient, name: str):
+def delete_software_spec(client: APIClient, name: str):
+    """Delete a software specification
+
+    Parameters
+    ----------
+    client : APIClient
+        WML client
+    name : str
+        name of software specification
+    """
     sw_spec_id = client.software_specifications.get_id_by_name(name)
     client.software_specifications.delete(sw_spec_id)
 
 
+def get_software_spec_from_deployment_name(
+    client: APIClient, deployment_name: str
+) -> str:
+    """Get software specification id for the given deployment
+
+    Parameters
+    ----------
+    client : APIClient
+        WML client
+    deployment_name : str
+        name of the deployment
+
+    Returns
+    -------
+    str
+        software specification id
+    """
+    deployment = get_deployment(client=client, name=deployment_name)
+    model_id = deployment["entity"]["asset"]["id"]
+    software_spec_id = client.repository.get_model_details(model_uid=model_id)[
+        "entity"
+    ]["software_spec"]["id"]
+
+    return software_spec_id
+
+
 def is_zipfile(file_path: str) -> bool:
+    """Utility method to check if the given file path is a valid zip file.
+
+    Parameters
+    ----------
+    file_path : str
+        path to zip file
+
+    Returns
+    -------
+    bool
+        True if it is a valid zip file, else False
+    """
     if not os.path.isfile(file_path):
         return False
 
@@ -307,13 +298,25 @@ def is_zipfile(file_path: str) -> bool:
         return False
 
 
-def get_software_spec_from_deployment_name(
-    client: APIClient, deployment_name: str
-) -> str:
-    deployment = get_deployment(client=client, name=deployment_name)
-    model_id = deployment["entity"]["asset"]["id"]
-    software_spec_id = client.repository.get_model_details(model_uid=model_id)[
-        "entity"
-    ]["software_spec"]["id"]
+def refine_conda_yaml(conda_yaml: str) -> str:
+    with open(conda_yaml, "r", encoding="utf-8") as f:
+        env_data = yaml.safe_load(f)
 
-    return software_spec_id
+    pip_dependencies = []
+
+    for dep in env_data["dependencies"]:
+        if isinstance(dep, dict):
+            if "pip" in dep.keys():
+                pip_dependencies.extend(dep["pip"])
+
+    refined_env = {
+        "channels": ["defaults"],
+        "dependencies": [
+            "pip",
+            {"pip": pip_dependencies},
+        ],
+        "name": "mlflow-env",
+    }
+
+    with open(conda_yaml, "w", encoding="utf-8") as f:
+        yaml.safe_dump(refined_env, f)

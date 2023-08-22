@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 from ibm_watson_machine_learning.client import APIClient
 from mlflow.exceptions import MlflowException
@@ -65,7 +65,7 @@ def deploy(
         deployment_details["name"] = deployment_details["metadata"]["name"]
 
         LOGGER.info(deployment_details)
-        LOGGER.info(f"Created {'batch' if batch else 'online'} deployment {name}")
+        LOGGER.info(f"Created {'batch' if batch else 'online'} deployment - {name}")
 
     except Exception as e:
         raise MlflowException(e)
@@ -74,7 +74,8 @@ def deploy(
 
 
 def delete_deployment(client: APIClient, name: str):
-    """Delete an existing deployment from WML
+    """Delete an existing deployment from WML.
+    This method deletes the deployment and all the artifacts associated with it.
 
     Parameters
     ----------
@@ -90,11 +91,24 @@ def delete_deployment(client: APIClient, name: str):
         client.deployments.delete(deployment_uid=deployment_id)
         LOGGER.info(f"Deleted deployment {name} with id {deployment_id}.")
 
-        model_id = deployment_details["entity"]["asset"]["id"]
-        client.repository.delete(artifact_uid=model_id)
-        LOGGER.info(f"Deleted model {name} with id {model_id} from the repository.")
+        artifact_id = deployment_details["entity"]["asset"]["id"]
+        artifact_details = client.repository.get_details(artifact_uid=artifact_id)
+        client.repository.delete(artifact_uid=artifact_id)
+        LOGGER.info(
+            f"Deleted artifact {name} with id {artifact_id} from the repository."
+        )
+
+        software_spec_id = artifact_details["entity"]["software_spec"]["id"]
+        software_spec_details = client.software_specifications.get_details(
+            sw_spec_uid=software_spec_id
+        )
+        client.software_specifications.delete(sw_spec_uid=software_spec_id)
+        LOGGER.info(
+            f"Deleted software specification {software_spec_details['metadata']['name']} with id {software_spec_id} from the repository."
+        )
 
     except Exception as e:
+        LOGGER.exception(e)
         raise MlflowException(e)
 
 
@@ -103,7 +117,7 @@ def update_model(
     deployment_name: str,
     updated_model_config: Dict = {},
     updated_model_object: Optional[Any] = None,
-):
+) -> Tuple[str, str]:
     try:
         deployment_details = get_deployment(client=client, name=deployment_name)
 
@@ -121,13 +135,17 @@ def update_model(
             update_model=updated_model_object,
         )
 
-        revised_model_details = client.repository.create_model_revision(model_id)
+        updated_model_id = client.repository.get_model_id(updated_model_details)
+
+        revised_model_details = client.repository.create_model_revision(
+            updated_model_id
+        )
         revision_id = revised_model_details["metadata"]["rev"]
 
     except Exception as e:
         raise MlflowException(e)
 
-    return (updated_model_details, revision_id)
+    return (updated_model_id, revision_id)
 
 
 def update_deployment(
@@ -153,38 +171,17 @@ def update_deployment(
     LOGGER.info(updated_deployment)
 
 
-def set_deployment_space(client: APIClient, deployment_space_name: str) -> APIClient:
-    try:
-        space_uid = get_space_id_from_space_name(
-            client=client,
-            space_name=deployment_space_name,
-        )
-        client.set.default_space(space_uid=space_uid)
-
-        LOGGER.info(
-            f"Set deployment space to {deployment_space_name} with space id - {space_uid}"
-        )
-
-    except Exception as e:
-        LOGGER.exception(e)
-        raise MlflowException(
-            f"Failed to set deployment space {deployment_space_name}", f"{e}"
-        )
-
-    return client
-
-
 def create_custom_software_spec(
     client: APIClient,
     name: str,
-    base_sofware_spec: str,
-    custom_packages: List[Dict[str, str]],
-    conda_yaml: str = None,
+    custom_packages: Optional[List[Dict[str, str]]],
+    conda_yaml: Optional[str] = None,
     rewrite: bool = False,
 ) -> str:
     if software_spec_exists(client=client, name=name):
         if rewrite:
-            delete_sw_spec(client=client, name=name)
+            while software_spec_exists(client=client, name=name):
+                delete_software_spec(client=client, name=name)
         else:
             LOGGER.warn(
                 f"""Software spec {name} already exists."""
@@ -197,7 +194,7 @@ def create_custom_software_spec(
 
     try:
         base_software_spec_id = client.software_specifications.get_id_by_name(
-            base_sofware_spec
+            "runtime-22.2-py3.10"
         )
 
         meta_prop_sw_spec = {
@@ -210,16 +207,27 @@ def create_custom_software_spec(
         sw_spec_details = client.software_specifications.store(
             meta_props=meta_prop_sw_spec
         )
-        software_spec_id = client.software_specifications.get_uid(sw_spec_details)
+        software_spec_id = client.software_specifications.get_id(sw_spec_details)
 
-        if conda_yaml:
+        if conda_yaml is not None:
+            if not os.path.exists(conda_yaml):
+                raise FileNotFoundError(f"conda.yaml file not found!")
+
+            refine_conda_yaml(conda_yaml=conda_yaml)
+
+            pkg_extn_name = f"{name}_conda_env"
+            # pkg_extn_id =
+
+            # if client.package_extensions.get_id_by_name(pkg_extn_name=pkg_extn_name) != "Not Found":
+
             meta_prop_pkg_extn = {
-                client.package_extensions.ConfigurationMetaNames.NAME: f"{name}_conda_env",
+                client.package_extensions.ConfigurationMetaNames.NAME: pkg_extn_name,
                 client.package_extensions.ConfigurationMetaNames.TYPE: "conda_yml",
             }
 
             pkg_extn_details = client.package_extensions.store(
-                meta_props=meta_prop_pkg_extn, file_path="conda.yml"
+                meta_props=meta_prop_pkg_extn,
+                file_path=conda_yaml,
             )
 
             pkg_extn_id = client.package_extensions.get_uid(pkg_extn_details)
@@ -228,33 +236,32 @@ def create_custom_software_spec(
                 software_spec_id, pkg_extn_id
             )
 
-        for custom_package in custom_packages:
-            if not is_zipfile(custom_package["file"]):
-                raise MlflowException(
-                    f"{custom_package['file']} is not a valid zip file."
+        if custom_packages is not None:
+            for custom_package in custom_packages:
+                if not is_zipfile(custom_package["file"]):
+                    raise MlflowException(
+                        f"{custom_package['file']} is not a valid zip file."
+                    )
+
+                meta_prop_pkg_extn = {
+                    client.package_extensions.ConfigurationMetaNames.NAME: custom_package[
+                        "name"
+                    ],
+                    client.package_extensions.ConfigurationMetaNames.TYPE: "pip_zip",
+                }
+
+                pkg_extn_details = client.package_extensions.store(
+                    meta_props=meta_prop_pkg_extn, file_path=custom_package["file"]
                 )
 
-            meta_prop_pkg_extn = {
-                client.package_extensions.ConfigurationMetaNames.NAME: custom_package[
-                    "name"
-                ],
-                client.package_extensions.ConfigurationMetaNames.TYPE: "pip_zip",
-            }
+                pkg_extn_id = client.package_extensions.get_id(pkg_extn_details)
 
-            pkg_extn_details = client.package_extensions.store(
-                meta_props=meta_prop_pkg_extn, file_path=custom_package["file"]
-            )
-
-            pkg_extn_id = client.package_extensions.get_id(pkg_extn_details)
-
-            client.software_specifications.add_package_extension(
-                software_spec_id, pkg_extn_id
-            )
+                client.software_specifications.add_package_extension(
+                    software_spec_id, pkg_extn_id
+                )
 
     except Exception as e:
         LOGGER.exception(e)
-        if software_spec_exists(client=client, name=name):
-            delete_sw_spec(client, name)
 
         raise MlflowException(e)
 

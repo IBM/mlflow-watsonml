@@ -1,12 +1,17 @@
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
+import mlflow
 import numpy as np
 import pandas as pd
 from ibm_watson_machine_learning.client import APIClient
 from mlflow.deployments import BaseDeploymentClient
 from mlflow.exceptions import MlflowException
-from mlflow.protos.databricks_pb2 import ENDPOINT_NOT_FOUND, INVALID_PARAMETER_VALUE
+from mlflow.protos.databricks_pb2 import (
+    ENDPOINT_NOT_FOUND,
+    INVALID_PARAMETER_VALUE,
+    NOT_IMPLEMENTED,
+)
 
 from mlflow_watsonml.config import Config
 from mlflow_watsonml.store import *
@@ -90,9 +95,22 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         APIClient
             WML client
         """
-        client = set_deployment_space(
-            client=self._wml_client, deployment_space_name=endpoint
-        )
+        client = self._wml_client
+
+        try:
+            space_uid = get_space_id_from_space_name(
+                client=client,
+                space_name=endpoint,
+            )
+            client.set.default_space(space_uid=space_uid)
+
+            LOGGER.info(
+                f"Set deployment space to {endpoint} with space id - {space_uid}"
+            )
+
+        except Exception as e:
+            LOGGER.exception(e)
+            raise MlflowException(f"Failed to set deployment space {endpoint}", f"{e}")
 
         return client
 
@@ -101,7 +119,7 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         name: str,
         model_uri: str,
         flavor: str,
-        config: Dict,
+        config: Optional[Dict],
         endpoint: str,
     ) -> Dict:
         """Deploy a model at `model_uri` to a WML target. this method blocks until
@@ -130,6 +148,9 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         """
         client = self.get_wml_client(endpoint=endpoint)
 
+        if config is None:
+            config = dict()
+
         # check if a deployment by that name exists
         if deployment_exists(client=client, name=name):
             raise MlflowException(
@@ -137,22 +158,50 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
                 error_code=INVALID_PARAMETER_VALUE,
             )
 
-        software_spec_type = config.get("software_spec_type", DEFAULT_SOFTWARE_SPEC)
-        software_spec_uid = client.software_specifications.get_id_by_name(
-            software_spec_type
-        )
+        conda_yaml = mlflow.pyfunc.get_model_dependencies(
+            model_uri=model_uri, format="conda"
+        )  # other option is to have a default conda_yaml for each flavor
 
-        artifact_id, revision_id = store_artifact(
+        LOGGER.debug(conda_yaml)
+
+        custom_packages: List[Dict] = config.get("custom_packages")
+
+        software_spec_uid = create_custom_software_spec(
             client=client,
-            model_uri=model_uri,
-            flavor=flavor,
-            software_spec_uid=software_spec_uid,
+            name=f"{name}_sw_spec",
+            custom_packages=custom_packages,
+            conda_yaml=conda_yaml,
+            rewrite=False,
         )
 
-        artifact_details = client.repository.get_details(artifact_uid=artifact_id)
+        artifact_name = f"{name}_v1"
 
-        LOGGER.info("Stored Artifact Details = %s", artifact_details)
-        LOGGER.info("Stored Artifact UID = %s", artifact_id)
+        if flavor == "sklearn":
+            artifact_id, revision_id = store_sklearn_artifact(
+                client=client,
+                model_uri=model_uri,
+                artifact_name=artifact_name,
+                software_spec_id=software_spec_uid,
+            )
+
+        elif flavor == "onnx":
+            artifact_id, revision_id = store_onnx_artifact(
+                client=client,
+                model_uri=model_uri,
+                artifact_name=artifact_name,
+                software_spec_id=software_spec_uid,
+            )
+
+        else:
+            raise MlflowException(
+                f"Flavor {flavor} is invalid or not implemented",
+                error_code=NOT_IMPLEMENTED,
+            )
+
+        # artifact_details = client.repository.get_details(artifact_uid=artifact_id)
+
+        # LOGGER.info("Stored Artifact Details = %s", artifact_details)
+        # LOGGER.info("Stored Artifact UID = %s", artifact_id)
 
         batch = config.get("batch", False)
 
@@ -207,10 +256,8 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         updated_model_config = {}
 
         # if `model_uri` is provided, create a new model object
-        if model_uri is not None:
-            model_object, _ = load_model(model_uri=model_uri, flavor=flavor)
-        else:
-            model_object = None
+
+        model_object = None
 
         if config is not None and "software_spec_type" in config.keys():
             if get_software_spec(
@@ -222,15 +269,11 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
                     "software_spec_type"
                 ]
 
-        model_details, revision_id = update_model(
+        model_id, revision_id = update_model(
             client=client,
             deployment_name=name,
             updated_model_object=model_object,
             updated_model_config=updated_model_config,
-        )
-
-        model_id = get_model_id_from_model_details(
-            client=client, model_details=model_details
         )
 
         deployment_details = update_deployment(
@@ -334,23 +377,22 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         }
 
         deployment_id = get_deployment_id_from_deployment_name(
-            client=client,
-            deployment_name=deployment_name,
+            client=client, deployment_name=deployment_name
         )
 
         predictions = client.deployments.score(
             deployment_id=deployment_id, meta_props=scoring_payload
         )["predictions"]
 
-        fields = predictions[0]["fields"]
+        # fields = predictions[0]["fields"]
 
-        frames = []
-        for prediction in predictions:
-            frames.extend(prediction["values"])
+        # frames = []
+        # for prediction in predictions:
+        #     frames.extend(prediction["values"])
 
-        ans = pd.DataFrame(frames, columns=fields)
+        # ans = pd.DataFrame(frames, columns=fields)
 
-        return ans
+        return predictions  # ans
 
     def explain(self, deployment_name=None, df=None, endpoint=None):
         raise NotImplementedError()
@@ -375,8 +417,8 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         name: str,
         base_software_spec: str,
         custom_packages: List[Dict[str, str]],
+        endpoint: str,
         rewrite: bool = False,
-        endpoint: Optional[str] = None,
     ):
         client = self.get_wml_client(endpoint=endpoint)
         software_spec_id = create_custom_software_spec(
