@@ -17,7 +17,10 @@ setup(
     author="IBM AI Model Factory team",
     author_email="dhruv.shah@ibm.com",
     install_requires=install_requires,
-    extras_require={"dev": ["ipython", "black", "pytest", "build", "wheel", "twine"]},
+    extras_require={
+        "dev": ["ipython", "black", "pytest", "build", "wheel", "twine", "pytest-cov"],
+        "onnx": ["onnx", "onnxruntime"],
+    },
     entry_points={"mlflow.deployments": "watsonml=mlflow_watsonml.deploy"},
     python_requires=">=3.8",
     use_scm_version=True,
