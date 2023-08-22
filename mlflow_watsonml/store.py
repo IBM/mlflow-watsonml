@@ -1,11 +1,21 @@
 import logging
 import os
+from types import FunctionType
 from typing import Any, Dict, Tuple
 
 from ibm_watson_machine_learning.client import APIClient
 from mlflow.exceptions import MlflowException
 
 LOGGER = logging.getLogger(__name__)
+
+
+# TODO: implement logic to make sure the environment variables are set
+def get_s3_creds():
+    return {
+        "MLFLOW_S3_ENDPOINT_URL": os.environ.get("MLFLOW_S3_ENDPOINT_URL"),
+        "AWS_SECRET_ACCESS_KEY": os.environ.get("AWS_SECRET_ACCESS_KEY"),
+        "AWS_ACCESS_KEY_ID": os.environ.get("AWS_ACCESS_KEY_ID"),
+    }
 
 
 def store_model(
@@ -71,7 +81,7 @@ def store_model(
 
 def store_function(
     client: APIClient,
-    deployable_function: callable,
+    deployable_function: FunctionType,
     function_name: str,
     software_spec_uid: str,
 ):
@@ -111,14 +121,10 @@ def store_function(
 def store_onnx_artifact(
     client: APIClient, model_uri: str, artifact_name: str, software_spec_id: str
 ):
-    params = {
-        "MLFLOW_S3_ENDPOINT_URL": os.environ.get("MLFLOW_S3_ENDPOINT_URL"),
-        "AWS_SECRET_ACCESS_KEY": os.environ.get("AWS_SECRET_ACCESS_KEY"),
-        "AWS_ACCESS_KEY_ID": os.environ.get("AWS_ACCESS_KEY_ID"),
-    }
+    config = get_s3_creds()
 
     # the args have to be passed as default value in the scorer
-    def deployable_onnx_scorer(artifact_uri: str = model_uri, config: dict = params):
+    def deployable_onnx_scorer(artifact_uri=model_uri, config=config):
         import os
         import tempfile
 
@@ -126,33 +132,31 @@ def store_onnx_artifact(
         import onnx
         from onnxruntime import InferenceSession
 
-        for key, value in config.items():
-            os.environ[key] = value
-
         def score(payload: dict):
-            with tempfile.TemporaryDirectory() as tmpdir:
-                filepath = mlflow.artifacts.download_artifacts(
-                    artifact_uri=artifact_uri, dst_path=tmpdir
-                )
+            for key, value in config.items():
+                os.environ[key] = value
 
-                model_file = os.path.join(filepath, "model.onnx")
-                onnx.checker.check_model(model_file)
-                model = onnx.load(model_file)
+            artifact_dir = os.path.join(tempfile.gettempdir(), "artifacts")
+            artifact_file = mlflow.artifacts.download_artifacts(
+                artifact_uri=artifact_uri, dst_path=artifact_dir
+            )
+            model_file = os.path.join(artifact_file, "model.onnx")
+            onnx.checker.check_model(model_file)  # type: ignore
+            model = onnx.load(model_file)
+            input_name = model.graph.input[0].name
 
-                scoring_output = {"predictions": []}
+            scoring_output = {"predictions": []}
 
-                sess = InferenceSession(model.SerializeToString())
+            sess = InferenceSession(model.SerializeToString())
 
-                for data in payload["input_data"]:
-                    values = data.get("values")
-                    # fields = data.get("fields")
-                    predictions = sess.run(None, {"X": values})[0]
+            for data in payload["input_data"]:
+                values = data.get("values")
+                # fields = data.get("fields")
+                predictions = sess.run(None, {input_name: values})[0]
 
-                    scoring_output["predictions"].append(
-                        {"values": predictions.tolist()}
-                    )
+                scoring_output["predictions"].append({"values": predictions.tolist()})
 
-                return scoring_output
+            return scoring_output
 
         return score
 
@@ -169,14 +173,10 @@ def store_onnx_artifact(
 def store_sklearn_artifact(
     client: APIClient, model_uri: str, artifact_name: str, software_spec_id: str
 ):
-    params = {
-        "MLFLOW_S3_ENDPOINT_URL": os.environ.get("MLFLOW_S3_ENDPOINT_URL"),
-        "AWS_SECRET_ACCESS_KEY": os.environ.get("AWS_SECRET_ACCESS_KEY"),
-        "AWS_ACCESS_KEY_ID": os.environ.get("AWS_ACCESS_KEY_ID"),
-    }
+    config = get_s3_creds()
 
     # the args have to be passed as default value in the scorer
-    def deployable_sklearn_scorer(artifact_uri: str = model_uri, config: dict = params):
+    def deployable_sklearn_scorer(model_uri=model_uri, config=config):
         import os
 
         import mlflow
@@ -185,7 +185,7 @@ def store_sklearn_artifact(
             for key, value in config.items():
                 os.environ[key] = value
 
-            model = mlflow.sklearn.load_model(model_uri=artifact_uri)
+            model = mlflow.sklearn.load_model(model_uri=model_uri)
 
             if model is None:
                 return {"predictions": [{"values": "no model found"}]}
