@@ -21,9 +21,6 @@ from mlflow_watsonml.wml import *
 LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(logging.INFO)
 
-# CONSTANTS
-DEFAULT_SOFTWARE_SPEC = "runtime-22.2-py3.10"
-
 
 def target_help():
     # TODO: Improve
@@ -137,7 +134,11 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         flavor : str
             flavor of the deployed model
         config : Dict
-            configuration parameters
+            configuration parameters for wml deployment.
+            possible optional configuration keys are -
+            - "software_spec_name" : name of the software specification to reuse
+            - "conda_yaml" : filepath of conda.yaml file
+            - "custom_packages": a list of dict containing `name` and `file` keys
         endpoint : str
             deployment space name
 
@@ -158,21 +159,34 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
                 error_code=INVALID_PARAMETER_VALUE,
             )
 
-        conda_yaml = mlflow.pyfunc.get_model_dependencies(
-            model_uri=model_uri, format="conda"
-        )  # other option is to have a default conda_yaml for each flavor
+        if "software_spec_name" in config.keys():
+            software_spec_id = client.software_specifications.get_id_by_name(
+                config["software_spec_name"]
+            )
 
-        LOGGER.debug(conda_yaml)
+            if software_spec_id == "Not Found":
+                raise MlflowException(
+                    f"Software Specification {config['software_spec_name']} not found.",
+                    error_code=INVALID_PARAMETER_VALUE,
+                )
 
-        custom_packages: List[Dict] = config.get("custom_packages")
+        else:
+            if "conda_yaml" in config.keys():
+                conda_yaml = config["conda_yaml"]
+            else:
+                conda_yaml = mlflow.pyfunc.get_model_dependencies(
+                    model_uri=model_uri, format="conda"
+                )  # other option is to have a default conda_yaml for each flavor
 
-        software_spec_uid = create_custom_software_spec(
-            client=client,
-            name=f"{name}_sw_spec",
-            custom_packages=custom_packages,
-            conda_yaml=conda_yaml,
-            rewrite=False,
-        )
+            custom_packages: List[Dict] = config.get("custom_packages")
+
+            software_spec_id = create_custom_software_spec(
+                client=client,
+                name=f"{name}_sw_spec",
+                custom_packages=custom_packages,
+                conda_yaml=conda_yaml,
+                rewrite=False,
+            )
 
         artifact_name = f"{name}_v1"
 
@@ -181,7 +195,7 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
                 client=client,
                 model_uri=model_uri,
                 artifact_name=artifact_name,
-                software_spec_id=software_spec_uid,
+                software_spec_id=software_spec_id,
             )
 
         elif flavor == "onnx":
@@ -189,7 +203,7 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
                 client=client,
                 model_uri=model_uri,
                 artifact_name=artifact_name,
-                software_spec_id=software_spec_uid,
+                software_spec_id=software_spec_id,
             )
 
         else:
@@ -197,11 +211,6 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
                 f"Flavor {flavor} is invalid or not implemented",
                 error_code=NOT_IMPLEMENTED,
             )
-
-        # artifact_details = client.repository.get_details(artifact_uid=artifact_id)
-
-        # LOGGER.info("Stored Artifact Details = %s", artifact_details)
-        # LOGGER.info("Stored Artifact UID = %s", artifact_id)
 
         batch = config.get("batch", False)
 
@@ -224,9 +233,8 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         endpoint: Optional[str] = None,
     ) -> Dict:
         """Update the deployment with the specified name. You can update the URI of the model, the
-        flavor of the deployed model (in which case the model URI must also be specified), and/or
-        any WML-specific attributes of the deployment (via `config`). By default, this method
-        blocks until deployment completes (i.e. until it's possible to perform inference
+        flavor of the deployed model (in which case the model URI must also be specified). By default,
+        this method blocks until deployment completes (i.e. until it's possible to perform inference
         with the updated deployment).
 
         Parameters
@@ -251,36 +259,7 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         Dict
             deployment details dictionary
         """
-        client = self.get_wml_client(endpoint=endpoint)
-
-        updated_model_config = {}
-
-        # if `model_uri` is provided, create a new model object
-
-        model_object = None
-
-        if config is not None and "software_spec_type" in config.keys():
-            if get_software_spec(
-                client=client, name=config["software_spec_type"]
-            ) != get_software_spec_from_deployment_name(
-                client=client, deployment_name=name
-            ):
-                updated_model_config["software_spec_type"] = config[
-                    "software_spec_type"
-                ]
-
-        model_id, revision_id = update_model(
-            client=client,
-            deployment_name=name,
-            updated_model_object=model_object,
-            updated_model_config=updated_model_config,
-        )
-
-        deployment_details = update_deployment(
-            client=client, name=name, model_id=model_id, revision_id=revision_id
-        )
-
-        return deployment_details
+        raise NotImplementedError()
 
     def delete_deployment(
         self, name: str, config: Optional[Dict] = None, endpoint: Optional[str] = None
@@ -407,10 +386,16 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         raise NotImplementedError()
 
     def list_endpoints(self):
-        return list_endpoints(client=self.get_wml_client())
+        client = self._wml_client
+        endpoints = client.spaces.get_details(get_all=True)["resources"]
+
+        return endpoints
 
     def get_endpoint(self, endpoint):
-        return get_endpoint(client=self.get_wml_client(), endpoint=endpoint)
+        client = self._wml_client
+        endpoint_details = client.spaces.get_details(space_id=client.default_space_id)
+
+        return endpoint_details
 
     def create_custom_wml_spec(
         self,

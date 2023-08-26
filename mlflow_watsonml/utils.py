@@ -206,16 +206,6 @@ def get_endpoint(client: APIClient, endpoint: str):
     return endpoint_details
 
 
-def list_software_specs(client: APIClient) -> List[Dict]:
-    sw_specs = client.software_specifications.get_details()["resources"]
-    return sw_specs
-
-
-def get_software_spec(client: APIClient, name: str) -> str:
-    software_spec_id = client.software_specifications.get_id_by_name(sw_spec_name=name)
-    return software_spec_id
-
-
 def software_spec_exists(client: APIClient, name: str) -> bool:
     """Check if a given software specification exists.
 
@@ -233,20 +223,6 @@ def software_spec_exists(client: APIClient, name: str) -> bool:
     """
     software_spec = client.software_specifications.get_id_by_name(sw_spec_name=name)
     return software_spec != "Not Found"
-
-
-def delete_software_spec(client: APIClient, name: str):
-    """Delete a software specification
-
-    Parameters
-    ----------
-    client : APIClient
-        WML client
-    name : str
-        name of software specification
-    """
-    sw_spec_id = client.software_specifications.get_id_by_name(name)
-    client.software_specifications.delete(sw_spec_id)
 
 
 def get_software_spec_from_deployment_name(

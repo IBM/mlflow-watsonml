@@ -181,7 +181,14 @@ def create_custom_software_spec(
     if software_spec_exists(client=client, name=name):
         if rewrite:
             while software_spec_exists(client=client, name=name):
-                delete_software_spec(client=client, name=name)
+                software_spec_id = client.software_specifications.get_id_by_name(
+                    sw_spec_name=name
+                )
+                client.software_specifications.delete(sw_spec_uid=software_spec_id)
+
+                LOGGER.info(
+                    f"Deleted software specification {name} with id {software_spec_id}"
+                )
         else:
             LOGGER.warn(
                 f"""Software spec {name} already exists."""
