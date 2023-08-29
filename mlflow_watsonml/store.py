@@ -24,7 +24,7 @@ def store_model(
     software_spec_uid: str,
     model_name: str,
     model_type: str,
-) -> Tuple[Dict, Dict]:
+) -> Tuple[str, str]:
     """Store model_object in a WML repository
 
     Parameters
@@ -42,8 +42,8 @@ def store_model(
 
     Returns
     -------
-    Tuple[Dict, str]
-        model details dictionary, model revision
+    Tuple[str, str]
+        model id, model revision id
     """
     model_props = {
         client.repository.ModelMetaNames.NAME: model_name,
@@ -84,7 +84,25 @@ def store_function(
     deployable_function: FunctionType,
     function_name: str,
     software_spec_uid: str,
-):
+) -> Tuple[str, str]:
+    """Store function in WML repository
+
+    Parameters
+    ----------
+    client : APIClient
+        WML client
+    deployable_function : FunctionType
+        function to deploy
+    function_name : str
+        name of the function
+    software_spec_uid : str
+        software specification id
+
+    Returns
+    -------
+    Tuple[str, str]
+        function id and function revisin id
+    """
     metaprops = {
         client.repository.FunctionMetaNames.NAME: function_name,
         client.repository.FunctionMetaNames.SOFTWARE_SPEC_ID: software_spec_uid,
