@@ -161,7 +161,7 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         # check if a deployment by that name exists
         if deployment_exists(client=client, name=name):
             raise MlflowException(
-                f"Deplyment {name} already exists. Use `update_deployment()` or use a different name",
+                f"Deployment {name} already exists. Use `update_deployment()` or use a different name",
                 error_code=INVALID_PARAMETER_VALUE,
             )
 
@@ -184,7 +184,7 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
                     model_uri=model_uri, format="conda"
                 )  # other option is to have a default conda_yaml for each flavor
 
-            custom_packages: List[Dict] = config.get("custom_packages")
+            custom_packages: List[str] = config.get("custom_packages")
 
             software_spec_id = create_custom_software_spec(
                 client=client,
@@ -479,7 +479,8 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         self,
         name: str,
         base_software_spec: str,
-        custom_packages: List[Dict[str, str]],
+        custom_packages: Optional[List[str]],
+        conda_yaml: Optional[str],
         endpoint: str,
         rewrite: bool = False,
     ):
@@ -489,6 +490,7 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
             name=name,
             base_sofware_spec=base_software_spec,
             custom_packages=custom_packages,
+            conda_yaml=conda_yaml,
             rewrite=rewrite,
         )
 

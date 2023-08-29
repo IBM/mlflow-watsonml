@@ -174,7 +174,7 @@ def update_deployment(
 def create_custom_software_spec(
     client: APIClient,
     name: str,
-    custom_packages: Optional[List[Dict[str, str]]],
+    custom_packages: Optional[List[str]],
     conda_yaml: Optional[str] = None,
     rewrite: bool = False,
 ) -> str:
@@ -245,20 +245,18 @@ def create_custom_software_spec(
 
         if custom_packages is not None:
             for custom_package in custom_packages:
-                if not is_zipfile(custom_package["file"]):
-                    raise MlflowException(
-                        f"{custom_package['file']} is not a valid zip file."
-                    )
+                if not is_zipfile(custom_package):
+                    raise MlflowException(f"{custom_package} is not a valid zip file.")
+
+                pkg_name = os.path.splitext(os.path.basename(file))[0]
 
                 meta_prop_pkg_extn = {
-                    client.package_extensions.ConfigurationMetaNames.NAME: custom_package[
-                        "name"
-                    ],
+                    client.package_extensions.ConfigurationMetaNames.NAME: pkg_name,
                     client.package_extensions.ConfigurationMetaNames.TYPE: "pip_zip",
                 }
 
                 pkg_extn_details = client.package_extensions.store(
-                    meta_props=meta_prop_pkg_extn, file_path=custom_package["file"]
+                    meta_props=meta_prop_pkg_extn, file_path=custom_package
                 )
 
                 pkg_extn_id = client.package_extensions.get_id(pkg_extn_details)
