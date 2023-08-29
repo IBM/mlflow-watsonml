@@ -1,7 +1,7 @@
 import logging
 import os
 import zipfile
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import yaml
 from ibm_watson_machine_learning.client import APIClient
@@ -166,7 +166,7 @@ def deployment_exists(client: APIClient, name: str) -> bool:
     return any(item for item in deployments if item["name"] == name)
 
 
-def get_space_id_from_space_name(client: APIClient, space_name: str) -> str:
+def get_space_id_from_space_name(client: APIClient, space_name: str) -> Optional[str]:
     """Returns space ID from the space name
 
     Parameters
@@ -178,7 +178,7 @@ def get_space_id_from_space_name(client: APIClient, space_name: str) -> str:
 
     Returns
     -------
-    str
+    str | None
         space id
     """
     spaces = client.spaces.get_details(get_all=True)["resources"]
@@ -189,21 +189,9 @@ def get_space_id_from_space_name(client: APIClient, space_name: str) -> str:
         ]["id"]
     except StopIteration as _:
         message = f"space {space_name} not found"
-        LOGGER.exception(message)
-        raise MlflowException(message=message, error_code=ENDPOINT_NOT_FOUND)
-
-
-def list_endpoints(client: APIClient) -> List[Dict]:
-    endpoints = client.spaces.get_details(get_all=True)["resources"]
-    return endpoints
-
-
-def get_endpoint(client: APIClient, endpoint: str):
-    deployment_space_id = get_space_id_from_space_name(
-        client=client, space_name=endpoint
-    )
-    endpoint_details = client.spaces.get_details(space_id=deployment_space_id)
-    return endpoint_details
+        LOGGER.warn(message)
+        # raise MlflowException(message=message, error_code=ENDPOINT_NOT_FOUND)
+        return None
 
 
 def software_spec_exists(client: APIClient, name: str) -> bool:

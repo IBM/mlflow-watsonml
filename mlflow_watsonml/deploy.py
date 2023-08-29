@@ -99,6 +99,12 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
                 client=client,
                 space_name=endpoint,
             )
+
+            if space_uid is None:
+                raise MlflowException(
+                    f"Endpoint {endpoint} not found.",
+                    error_code=ENDPOINT_NOT_FOUND,
+                )
             client.set.default_space(space_uid=space_uid)
 
             LOGGER.info(
@@ -376,25 +382,97 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
     def explain(self, deployment_name=None, df=None, endpoint=None):
         raise NotImplementedError()
 
-    def create_endpoint(self, name, config=None):
-        raise NotImplementedError()
+    def create_endpoint(self, name: str, config: Optional[Dict] = None) -> Dict:
+        """
+        Create an endpoint with the specified target. By default, this method should block until
+        creation completes (i.e. until it's possible to create a deployment within the endpoint).
+        In the case of conflicts (e.g. if it's not possible to create the specified endpoint
+        due to conflict with an existing endpoint), raises a
+        :py:class:`mlflow.exceptions.MlflowException`. See target-specific plugin documentation
+        for additional detail on support for asynchronous creation and other configuration.
+
+        :param name: Unique name to use for endpoint. If another endpoint exists with the same
+                     name, raises a :py:class:`mlflow.exceptions.MlflowException`.
+        :param config: (optional) Dict containing target-specific configuration for the
+                       endpoint.
+        :return: Dict corresponding to created endpoint, which must contain the 'name' key.
+        """
+        client = self._wml_client
+
+        if config is None:
+            config = dict()
+
+        metadata = dict()
+        metadata[client.spaces.ConfigurationMetaNames.NAME] = name
+
+        if client.spaces.ConfigurationMetaNames.DESCRIPTION in config.keys():
+            metadata[client.spaces.ConfigurationMetaNames.DESCRIPTION] = config[
+                client.spaces.ConfigurationMetaNames.DESCRIPTION
+            ]
+
+        endpoint_details = client.spaces.store(
+            meta_props=metadata, background_mode=False
+        )
+
+        return endpoint_details
 
     def update_endpoint(self, endpoint, config=None):
+        """
+        Update the endpoint with the specified name. You can update any target-specific attributes
+        of the endpoint (via `config`). By default, this method should block until the update
+        completes (i.e. until it's possible to create a deployment within the endpoint). See
+        target-specific plugin documentation for additional detail on support for asynchronous
+        update and other configuration.
+
+        :param endpoint: Unique name of endpoint to update
+        :param config: (optional) dict containing target-specific configuration for the
+                       endpoint
+        :return: None
+        """
         raise NotImplementedError()
 
     def delete_endpoint(self, endpoint):
-        raise NotImplementedError()
+        """
+        Delete the endpoint from the specified target. Deletion should be idempotent (i.e. deletion
+        should not fail if retried on a non-existent deployment).
+
+        :param endpoint: Name of endpoint to delete
+        :return: None
+        """
+        client = self._wml_client
+
+        endpoint_id = get_space_id_from_space_name(client=client, space_name=endpoint)
+
+        if endpoint_id is not None:
+            client.spaces.delete(space_id=endpoint_id)
 
     def list_endpoints(self):
+        """
+        List endpoints in the specified target. This method is expected to return an
+        unpaginated list of all endpoints (an alternative would be to return a dict with
+        an 'endpoints' field containing the actual endpoints, with plugins able to specify
+        other fields, e.g. a next_page_token field, in the returned dictionary for pagination,
+        and to accept a `pagination_args` argument to this method for passing
+        pagination-related args).
+
+        :return: A list of dicts corresponding to endpoints. Each dict is guaranteed to
+                 contain a 'name' key containing the endpoint name. The other fields of
+                 the returned dictionary and their types may vary across targets.
+        """
         client = self._wml_client
         endpoints = client.spaces.get_details(get_all=True)["resources"]
+
+        for endpoint in endpoints:
+            endpoint["name"] = endpoint["entity"]["name"]
 
         return endpoints
 
     def get_endpoint(self, endpoint):
         client = self._wml_client
-        endpoint_details = client.spaces.get_details(space_id=client.default_space_id)
-
+        deployment_space_id = get_space_id_from_space_name(
+            client=client, space_name=endpoint
+        )
+        endpoint_details = client.spaces.get_details(space_id=deployment_space_id)
         return endpoint_details
 
     def create_custom_wml_spec(
