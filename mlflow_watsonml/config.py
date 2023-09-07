@@ -9,7 +9,6 @@ from mlflow.protos.databricks_pb2 import INVALID_PARAMETER_VALUE
 LOGGER = logging.getLogger(__name__)
 
 WML_CREDENTIALS = "wml_credentials"
-DEPLOYMENT_SPACE_NAME = "deployment_space_name"
 WML_CREDENTIALS_FILE = "wml_credentials_file"
 APIKEY = "apikey"
 LOCATION = "location"
@@ -35,9 +34,6 @@ class Config(dict):
             )
 
             config = {}
-
-            if "DEPLOYMENT_SPACE_NAME" in os.environ.keys():
-                config[DEPLOYMENT_SPACE_NAME] = os.getenv("DEPLOYMENT_SPACE_NAME")
 
             if "WML_CREDENTIALS_FILE" in os.environ.keys():
                 config[WML_CREDENTIALS_FILE] = os.getenv("WML_CREDENTIALS_FILE")
@@ -65,8 +61,6 @@ class Config(dict):
 
             if "VERSION" in os.environ.keys():
                 config[VERSION] = os.getenv("VERSION")
-
-        self[DEPLOYMENT_SPACE_NAME] = config.get(DEPLOYMENT_SPACE_NAME, None)
 
         # Load the appropriate environment variables based on their presence
         if WML_CREDENTIALS_FILE in config:
