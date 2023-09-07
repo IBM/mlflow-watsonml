@@ -174,15 +174,8 @@ class MockRepository(Repository):
     ):
         return {}
 
-    def get_artifact_details(
-        self,
-        artifact_uid=None,
-        limit=None,
-        asynchronous=False,
-        get_all=False,
-        spec_state=None,
-    ):
-        if get_all:
+    def get_details(self, artifact_uid=None, spec_state=None):
+        if artifact_uid is None:
             return {"resources": self._artifacts}
 
         artifact_details = None

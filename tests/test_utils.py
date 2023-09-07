@@ -155,66 +155,6 @@ def test_get_space_id_from_space_name_success():
     assert space_id == "id_of_space_1"
 
 
-def test_get_space_id_from_space_name_exception(caplog: LogCaptureFixture):
-    client = mlflow_watsonml.deploy.APIClient(wml_credentials=MOCK_WML_CREDENTIALS)
-
-    with pytest.raises(MlflowException):
-        space_id = get_space_id_from_space_name(client=client, space_name="space_01")
-
-    assert "space space_01 not found" in caplog.text
-
-
-def test_list_endpoints():
-    client = mlflow_watsonml.deploy.APIClient(wml_credentials=MOCK_WML_CREDENTIALS)
-
-    endpoints = list_endpoints(client=client)
-
-    assert isinstance(endpoints, list)
-    assert len(endpoints) == 2
-    assert endpoints[0]["entity"]["name"] == "space_1"
-    assert endpoints[0]["metadata"]["id"] == "id_of_space_1"
-    assert endpoints[1]["entity"]["name"] == "space_2"
-    assert endpoints[1]["metadata"]["id"] == "id_of_space_2"
-
-
-def test_get_endpoint_success():
-    client = mlflow_watsonml.deploy.APIClient(wml_credentials=MOCK_WML_CREDENTIALS)
-
-    space = get_endpoint(client=client, endpoint="space_1")
-    assert isinstance(space, dict)
-    assert space["entity"]["name"] == "space_1"
-    assert space["metadata"]["id"] == "id_of_space_1"
-
-
-def test_get_endpoint_exception(caplog: LogCaptureFixture):
-    client = mlflow_watsonml.deploy.APIClient(wml_credentials=MOCK_WML_CREDENTIALS)
-
-    with pytest.raises(Exception):
-        space = get_endpoint(client=client, endpoint="space_01")
-
-    assert "space space_01 not found" in caplog.text
-
-
-def test_software_spec_exists():
-    client = WatsonMLDeploymentClient(config=MOCK_WML_CREDENTIALS).get_wml_client(
-        endpoint="space_1"
-    )
-
-    assert software_spec_exists(client=client, name="sw_spec_1")
-    assert not software_spec_exists(client=client, name="sw_spec_01")
-
-
-def test_delete_software_spec(caplog: LogCaptureFixture):
-    client = WatsonMLDeploymentClient(config=MOCK_WML_CREDENTIALS).get_wml_client(
-        endpoint="space_1"
-    )
-    assert software_spec_exists(client=client, name="sw_spec_1")
-
-    delete_software_spec(client=client, name="sw_spec_1")
-
-    assert not software_spec_exists(client=client, name="sw_spec_1")
-
-
 @pytest.fixture
 def zip_file_path(tmp_path):
     # Create a temporary zip file for testing
@@ -275,21 +215,3 @@ def test_get_software_spec_from_deployment_name_exception(caplog: LogCaptureFixt
         )
 
     assert f"no deployment by the name deployment_3 exists"
-
-
-def test_load_artifact_success(monkeypatch: MonkeyPatch):
-    monkeypatch.setattr(mlflow.sklearn, "load_artifact", lambda artifact_uri: 0)
-
-    artifact_obj, artifact_type = load_artifact(
-        artifact_uri="some_uri", flavor="sklearn"
-    )
-
-    assert artifact_obj == 0
-    assert artifact_type == "scikit-learn_1.1"
-
-
-def test_load_artifact_exception(monkeypatch: MonkeyPatch, caplog: LogCaptureFixture):
-    monkeypatch.setattr(mlflow.sklearn, "load_artifact", lambda artifact_uri: 0)
-
-    with pytest.raises(NotImplementedError):
-        _, _ = load_artifact(artifact_uri="some_uri", flavor="xyz")

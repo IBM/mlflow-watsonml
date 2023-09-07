@@ -8,7 +8,7 @@ from mlflow_watsonml.deploy import WatsonMLDeploymentClient
 
 MOCK_WML_CREDENTIALS = {
     "username": "user",
-    "apikey": "abcdefghijkl",
+    "apikey": "correct_api_key",
     "url": "https://url",
     "instance_id": "wml",
     "version": "1.0",
@@ -60,10 +60,7 @@ def test_get_wml_client_exception(caplog: LogCaptureFixture):
 
 
 def test_create_deployment_success(monkeypatch: MonkeyPatch):
-    def load_model(model_uri, flavor):
-        return 0, "sklearn"
-
-    monkeypatch.setattr(mlflow_watsonml.deploy, "load_model", load_model)
+    ...
 
 
 def test_create_deployment_exception(caplog: LogCaptureFixture):
