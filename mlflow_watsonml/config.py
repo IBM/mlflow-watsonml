@@ -3,6 +3,7 @@ import logging
 import os
 from typing import Dict, Optional
 
+from dotenv import load_dotenv
 from mlflow import MlflowException
 from mlflow.protos.databricks_pb2 import INVALID_PARAMETER_VALUE
 
@@ -30,8 +31,17 @@ class Config(dict):
         if config is None:
             LOGGER.info(
                 """Input credentials not provided. 
-                Attempting to load credentials from environment variables."""
+                Attempting to load credentials from .env file"""
             )
+
+            ret = load_dotenv()
+
+            if ret:
+                LOGGER.info("Loaded input credentials from .env file")
+            else:
+                LOGGER.info(
+                    ".env file not found. Attempting to read credentials from environment variables."
+                )
 
             config = {}
 
