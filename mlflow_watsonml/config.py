@@ -8,6 +8,7 @@ from mlflow import MlflowException
 from mlflow.protos.databricks_pb2 import INVALID_PARAMETER_VALUE
 
 LOGGER = logging.getLogger(__name__)
+LOGGER.setLevel(logging.INFO)
 
 WML_CREDENTIALS = "wml_credentials"
 WML_CREDENTIALS_FILE = "wml_credentials_file"
@@ -30,8 +31,7 @@ class Config(dict):
 
         if config is None:
             LOGGER.info(
-                """Input credentials not provided. 
-                Attempting to load credentials from .env file"""
+                "Input credentials not provided. Attempting to load credentials from .env file"
             )
 
             ret = load_dotenv()
