@@ -10,8 +10,8 @@ from mlflow.exceptions import ENDPOINT_NOT_FOUND, MlflowException
 LOGGER = logging.getLogger(__name__)
 
 
-def list_models(client: APIClient) -> List[Dict]:
-    """lists models in WML repository
+def list_artifacts(client: APIClient) -> List[Dict]:
+    """lists artifacts in WML repository
 
     Parameters
     ----------
@@ -21,59 +21,59 @@ def list_models(client: APIClient) -> List[Dict]:
     Returns
     -------
     List[Dict]
-        list of model details dictionary
+        list of artifact details dictionary
     """
-    models = client.repository.get_model_details(get_all=True)["resources"]
+    artifacts = client.repository.get_details()["resources"]
 
-    for model in models:
-        model["name"] = model["metadata"]["name"]
+    for artifact in artifacts:
+        artifact["name"] = artifact["metadata"]["name"]
 
-    return models
+    return artifacts
 
 
-def get_model_id_from_model_name(client: APIClient, model_name: str) -> str:
-    """Returns model ID from model name
+def get_artifact_id_from_artifact_name(client: APIClient, artifact_name: str) -> str:
+    """Returns artifact ID from artifact name
 
     Parameters
     ----------
-    model_name : str
-        model name
+    artifact_name : str
+        artifact name
 
     Returns
     -------
     str
-        model id
+        artifact id
     """
-    models = list_models(client=client)
+    artifacts = list_artifacts(client=client)
 
     try:
-        return next(item for item in models if item["name"] == model_name)["metadata"][
-            "id"
-        ]
+        return next(item for item in artifacts if item["name"] == artifact_name)[
+            "metadata"
+        ]["id"]
     except StopIteration as _:
-        message = f"model {model_name} not found"
+        message = f"artifact {artifact_name} not found"
         LOGGER.exception(message)
         raise MlflowException(message=message, error_code=ENDPOINT_NOT_FOUND)
 
 
-def model_exists(client: APIClient, name: str) -> bool:
-    """Checks if a model by the given name exists
+def artifact_exists(client: APIClient, name: str) -> bool:
+    """Checks if a artifact by the given name exists
 
     Parameters
     ----------
     client : APIClient
         WML client
     name : str
-        name of the model
+        name of the artifact
 
     Returns
     -------
     bool
-        True if the model exists else False
+        True if the artifact exists else False
     """
-    models = list_models(client=client)
+    artifacts = list_artifacts(client=client)
 
-    return any(item for item in models if item["name"] == name)
+    return any(item for item in artifacts if item["name"] == name)
 
 
 def list_deployments(client: APIClient) -> List[Dict]:
@@ -231,8 +231,8 @@ def get_software_spec_from_deployment_name(
         software specification id
     """
     deployment = get_deployment(client=client, name=deployment_name)
-    model_id = deployment["entity"]["asset"]["id"]
-    software_spec_id = client.repository.get_model_details(model_uid=model_id)[
+    artifact_id = deployment["entity"]["asset"]["id"]
+    software_spec_id = client.repository.get_details(artifact_uid=artifact_id)[
         "entity"
     ]["software_spec"]["id"]
 

@@ -11,7 +11,7 @@ from mlflow_watsonml.utils import *
 
 MOCK_WML_CREDENTIALS = {
     "username": "user",
-    "apikey": "abcdefghijkl",
+    "apikey": "correct_api_key",
     "url": "https://url",
     "instance_id": "wml",
     "version": "1.0",
@@ -24,19 +24,53 @@ def mock_client(monkeypatch: MonkeyPatch):
     monkeypatch.setattr(mlflow_watsonml.deploy, "APIClient", MockAPIClient)
 
 
-def test_list_models():
+def test_list_artifacts():
     client = WatsonMLDeploymentClient(config=MOCK_WML_CREDENTIALS).get_wml_client(
         endpoint="space_1"
     )
 
-    models = list_models(client=client)
+    artifacts = list_artifacts(client=client)
 
-    assert isinstance(models, list)
-    assert len(models) == 3
+    assert isinstance(artifacts, list)
+    assert len(artifacts) == 3
 
-    for model in models:
-        assert isinstance(model, dict)
-        assert "name" in model.keys()
+    for artifact in artifacts:
+        assert isinstance(artifact, dict)
+        assert "name" in artifact.keys()
+
+
+def test_get_artifact_id_from_artifact_name_success():
+    client = WatsonMLDeploymentClient(config=MOCK_WML_CREDENTIALS).get_wml_client(
+        endpoint="space_1"
+    )
+
+    artifact_id = get_artifact_id_from_artifact_name(
+        client=client, artifact_name="artifact_1"
+    )
+
+    assert artifact_id == "id_of_artifact_1"
+
+
+def test_get_artifact_id_from_artifact_name_exception(caplog: LogCaptureFixture):
+    client = WatsonMLDeploymentClient(config=MOCK_WML_CREDENTIALS).get_wml_client(
+        endpoint="space_1"
+    )
+
+    with pytest.raises(MlflowException):
+        artifact_id = get_artifact_id_from_artifact_name(
+            client=client, artifact_name="artifact_01"
+        )
+
+    assert "artifact artifact_01 not found" in caplog.text
+
+
+def test_artifact_exists():
+    client = WatsonMLDeploymentClient(config=MOCK_WML_CREDENTIALS).get_wml_client(
+        endpoint="space_1"
+    )
+
+    assert artifact_exists(client=client, name="artifact_1")
+    assert not artifact_exists(client=client, name="artifact_01")
 
 
 def test_list_deployments():
@@ -104,25 +138,13 @@ def test_get_deployment_id_from_deployment_name_exception(caplog: LogCaptureFixt
     assert "no deployment by the name deployment_01 exists" in caplog.text
 
 
-def test_get_model_id_from_model_name_success():
+def test_deployment_exists():
     client = WatsonMLDeploymentClient(config=MOCK_WML_CREDENTIALS).get_wml_client(
         endpoint="space_1"
     )
 
-    model_id = get_model_id_from_model_name(client=client, model_name="model_1")
-
-    assert model_id == "id_of_model_1"
-
-
-def test_get_model_id_from_model_name_exception(caplog: LogCaptureFixture):
-    client = WatsonMLDeploymentClient(config=MOCK_WML_CREDENTIALS).get_wml_client(
-        endpoint="space_1"
-    )
-
-    with pytest.raises(MlflowException):
-        model_id = get_model_id_from_model_name(client=client, model_name="model_01")
-
-    assert "model model_01 not found" in caplog.text
+    assert deployment_exists(client=client, name="deployment_1")
+    assert not deployment_exists(client=client, name="deployment_01")
 
 
 def test_get_space_id_from_space_name_success():
@@ -140,52 +162,6 @@ def test_get_space_id_from_space_name_exception(caplog: LogCaptureFixture):
         space_id = get_space_id_from_space_name(client=client, space_name="space_01")
 
     assert "space space_01 not found" in caplog.text
-
-
-def test_get_deployment_id_from_deployment_details_success():
-    client = WatsonMLDeploymentClient(config=MOCK_WML_CREDENTIALS).get_wml_client(
-        endpoint="space_1"
-    )
-
-    deployment_id = get_deployment_id_from_deployment_details(
-        client=client,
-        deployment_details={
-            "metadata": {"name": "deployment_1", "id": "id_of_deployment_1"}
-        },
-    )
-
-    assert deployment_id == "id_of_deployment_1"
-
-
-def test_get_model_id_from_model_details_success():
-    client = WatsonMLDeploymentClient(config=MOCK_WML_CREDENTIALS).get_wml_client(
-        endpoint="space_1"
-    )
-
-    model_id = get_model_id_from_model_details(
-        client=client,
-        model_details={"metadata": {"name": "model_1", "id": "id_of_model_1"}},
-    )
-
-    assert model_id == "id_of_model_1"
-
-
-def test_deployment_exists():
-    client = WatsonMLDeploymentClient(config=MOCK_WML_CREDENTIALS).get_wml_client(
-        endpoint="space_1"
-    )
-
-    assert deployment_exists(client=client, name="deployment_1")
-    assert not deployment_exists(client=client, name="deployment_01")
-
-
-def test_model_exists():
-    client = WatsonMLDeploymentClient(config=MOCK_WML_CREDENTIALS).get_wml_client(
-        endpoint="space_1"
-    )
-
-    assert model_exists(client=client, name="model_1")
-    assert not model_exists(client=client, name="model_01")
 
 
 def test_list_endpoints():
@@ -219,43 +195,6 @@ def test_get_endpoint_exception(caplog: LogCaptureFixture):
     assert "space space_01 not found" in caplog.text
 
 
-def test_list_software_specs():
-    client = WatsonMLDeploymentClient(config=MOCK_WML_CREDENTIALS).get_wml_client(
-        endpoint="space_1"
-    )
-
-    sw_specs = list_software_specs(client=client)
-
-    assert isinstance(sw_specs, list)
-    assert len(sw_specs) == 2
-    assert sw_specs[0]["metadata"]["name"] == "sw_spec_1"
-    assert sw_specs[0]["metadata"]["asset_id"] == "id_of_sw_spec_1"
-    assert sw_specs[1]["metadata"]["name"] == "sw_spec_2"
-    assert sw_specs[1]["metadata"]["asset_id"] == "id_of_sw_spec_2"
-
-
-def test_get_sw_spec_success():
-    client = WatsonMLDeploymentClient(config=MOCK_WML_CREDENTIALS).get_wml_client(
-        endpoint="space_1"
-    )
-
-    sw_spec = get_software_spec(client=client, name="sw_spec_1")
-
-    assert isinstance(sw_spec, str)
-    assert sw_spec == "id_of_sw_spec_1"
-
-
-def test_get_sw_spec_exception(caplog: LogCaptureFixture):
-    client = WatsonMLDeploymentClient(config=MOCK_WML_CREDENTIALS).get_wml_client(
-        endpoint="space_1"
-    )
-
-    with pytest.raises(MlflowException):
-        sw_spec = get_software_spec(client=client, name="sw_spec_01")
-
-    assert "Software Specifiction - sw_spec_01 not found" in caplog.text
-
-
 def test_software_spec_exists():
     client = WatsonMLDeploymentClient(config=MOCK_WML_CREDENTIALS).get_wml_client(
         endpoint="space_1"
@@ -265,13 +204,13 @@ def test_software_spec_exists():
     assert not software_spec_exists(client=client, name="sw_spec_01")
 
 
-def test_delete_sw_spec(caplog: LogCaptureFixture):
+def test_delete_software_spec(caplog: LogCaptureFixture):
     client = WatsonMLDeploymentClient(config=MOCK_WML_CREDENTIALS).get_wml_client(
         endpoint="space_1"
     )
     assert software_spec_exists(client=client, name="sw_spec_1")
 
-    delete_sw_spec(client=client, name="sw_spec_1")
+    delete_software_spec(client=client, name="sw_spec_1")
 
     assert not software_spec_exists(client=client, name="sw_spec_1")
 
@@ -282,7 +221,7 @@ def zip_file_path(tmp_path):
     file_path = tmp_path / "test.zip"
     with zipfile.ZipFile(file_path, "w") as zf:
         zf.writestr("file1.txt", "Hello, World!")
-        zf.writestr("file2.txt", "Model Factory")
+        zf.writestr("file2.txt", "artifact Factory")
 
     yield str(file_path)
 
@@ -338,17 +277,19 @@ def test_get_software_spec_from_deployment_name_exception(caplog: LogCaptureFixt
     assert f"no deployment by the name deployment_3 exists"
 
 
-def test_load_model_success(monkeypatch: MonkeyPatch):
-    monkeypatch.setattr(mlflow.sklearn, "load_model", lambda model_uri: 0)
+def test_load_artifact_success(monkeypatch: MonkeyPatch):
+    monkeypatch.setattr(mlflow.sklearn, "load_artifact", lambda artifact_uri: 0)
 
-    model_obj, model_type = load_model(model_uri="some_uri", flavor="sklearn")
+    artifact_obj, artifact_type = load_artifact(
+        artifact_uri="some_uri", flavor="sklearn"
+    )
 
-    assert model_obj == 0
-    assert model_type == "scikit-learn_1.1"
+    assert artifact_obj == 0
+    assert artifact_type == "scikit-learn_1.1"
 
 
-def test_load_model_exception(monkeypatch: MonkeyPatch, caplog: LogCaptureFixture):
-    monkeypatch.setattr(mlflow.sklearn, "load_model", lambda model_uri: 0)
+def test_load_artifact_exception(monkeypatch: MonkeyPatch, caplog: LogCaptureFixture):
+    monkeypatch.setattr(mlflow.sklearn, "load_artifact", lambda artifact_uri: 0)
 
     with pytest.raises(NotImplementedError):
-        _, _ = load_model(model_uri="some_uri", flavor="xyz")
+        _, _ = load_artifact(artifact_uri="some_uri", flavor="xyz")

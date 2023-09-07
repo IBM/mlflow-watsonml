@@ -14,7 +14,7 @@ class MockAPIClient(APIClient):
     def __init__(self, wml_credentials: dict):
         self.wml_credentials = wml_credentials
 
-        if self.wml_credentials["apikey"] == "incorrect_api_key":
+        if self.wml_credentials["apikey"] != "correct_api_key":
             raise Exception("Connection Failed!")
 
         self.deployments = MockDeployments(self)
@@ -29,11 +29,11 @@ class MockDeployments(Deployments):
         self._client = client
         self._deployments = [
             {
-                "entity": {"asset": {"id": "id_of_model_1", "rev": "1"}},
+                "entity": {"asset": {"id": "id_of_artifact_1", "rev": "1"}},
                 "metadata": {"name": "deployment_1", "id": "id_of_deployment_1"},
             },
             {
-                "entity": {"asset": {"id": "id_of_model_2", "rev": "1"}},
+                "entity": {"asset": {"id": "id_of_artifact_2", "rev": "1"}},
                 "metadata": {"name": "deployment_2", "id": "id_of_deployment_2"},
             },
         ]
@@ -95,7 +95,7 @@ class MockPlatformSpaces(PlatformSpaces):
 class MockRepository(Repository):
     def __init__(self, client):
         self._client = client
-        self._models = [
+        self._artifacts = [
             {
                 "entity": {
                     "hybrid_pipeline_software_specs": [],
@@ -105,7 +105,7 @@ class MockRepository(Repository):
                     },
                     "type": "scikit-learn_1.1",
                 },
-                "metadata": {"name": "model_1", "id": "id_of_model_1"},
+                "metadata": {"name": "artifact_1", "id": "id_of_artifact_1"},
             },
             {
                 "entity": {
@@ -116,7 +116,7 @@ class MockRepository(Repository):
                     },
                     "type": "scikit-learn_1.1",
                 },
-                "metadata": {"name": "model_2", "id": "id_of_model_2"},
+                "metadata": {"name": "artifact_2", "id": "id_of_artifact_2"},
             },
             {
                 "entity": {
@@ -127,13 +127,13 @@ class MockRepository(Repository):
                     },
                     "type": "scikit-learn_1.1",
                 },
-                "metadata": {"name": "model_3", "id": "id_of_model_3"},
+                "metadata": {"name": "artifact_3", "id": "id_of_artifact_3"},
             },
         ]
 
-    def store_model(
+    def store_artifact(
         self,
-        model,
+        artifact,
         meta_props=None,
         training_data=None,
         training_target=None,
@@ -147,25 +147,25 @@ class MockRepository(Repository):
     ):
         return {}
 
-    def update_model(
+    def update_artifact(
         self,
-        model_uid,
+        artifact_uid,
         updated_meta_props=None,
-        update_model=None,
+        update_artifact=None,
     ):
         return {}
 
     def delete(self, artifact_uid):
         return {}
 
-    def create_model_revision(self, model_uid):
+    def create_artifact_revision(self, artifact_uid):
         return {}
 
     @staticmethod
-    def get_model_id(model_details):
-        return model_details["metadata"]["id"]
+    def get_artifact_id(artifact_details):
+        return artifact_details["metadata"]["id"]
 
-    def list_models(
+    def list_artifacts(
         self,
         limit=None,
         asynchronous=False,
@@ -174,28 +174,28 @@ class MockRepository(Repository):
     ):
         return {}
 
-    def get_model_details(
+    def get_artifact_details(
         self,
-        model_uid=None,
+        artifact_uid=None,
         limit=None,
         asynchronous=False,
         get_all=False,
         spec_state=None,
     ):
         if get_all:
-            return {"resources": self._models}
+            return {"resources": self._artifacts}
 
-        model_details = None
+        artifact_details = None
 
-        for model in self._models:
-            if model["metadata"]["id"] == model_uid:
-                model_details = model
+        for artifact in self._artifacts:
+            if artifact["metadata"]["id"] == artifact_uid:
+                artifact_details = artifact
                 break
 
-        if model_details is None:
-            raise Exception(f"Model with id - {model_uid} not found")
+        if artifact_details is None:
+            raise Exception(f"artifact with id - {artifact_uid} not found")
 
-        return model_details
+        return artifact_details
 
 
 class MockSet(Set):
