@@ -185,13 +185,14 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
                 )  # other option is to have a default conda_yaml for each flavor
 
             custom_packages: List[str] = config.get("custom_packages")
+            rewrite: bool = config.get("rewrite_software_spec", False)
 
             software_spec_id = create_custom_software_spec(
                 client=client,
                 name=f"{name}_sw_spec",
                 custom_packages=custom_packages,
                 conda_yaml=conda_yaml,
-                rewrite=False,
+                rewrite=rewrite,
             )
 
         artifact_name = f"{name}_v1"
@@ -290,13 +291,13 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         if deployment_exists(client=client, name=name):
             delete_deployment(client=client, name=name)
 
-    def list_deployments(self, endpoint: Optional[str] = None):
+    def list_deployments(self, endpoint: str):
         """List deployments. This method returns an unpaginated list of all deployments
 
         Parameters
         ----------
-        endpoint : Optional[str], optional
-            deployment space name, by default None
+        endpoint : str
+            deployment space name
 
         Returns
         -------
@@ -307,7 +308,7 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         """
         return list_deployments(client=self.get_wml_client(endpoint=endpoint))
 
-    def get_deployment(self, name: str, endpoint: Optional[str] = None):
+    def get_deployment(self, name: str, endpoint: str):
         """Returns a dictionary describing the specified deployment, throwing a
         :py:class:`mlflow.exceptions.MlflowException` if no deployment exists with the provided
         name.
@@ -318,8 +319,8 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         ----------
         name : str
             name of the deployment to fetch
-        endpoint : Optional[str], optional
-            deployment space name, by default None
+        endpoint : str
+            deployment space name
 
         Returns
         -------
@@ -478,17 +479,35 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
     def create_custom_wml_spec(
         self,
         name: str,
-        base_software_spec: str,
         custom_packages: Optional[List[str]],
         conda_yaml: Optional[str],
         endpoint: str,
         rewrite: bool = False,
-    ):
+    ) -> str:
+        """Create a custom WML Software Specification
+
+        Parameters
+        ----------
+        name : str
+            name for the software specification
+        custom_packages : Optional[List[str]]
+            a list of zip file paths for custom packages
+        conda_yaml : Optional[str]
+            file path to conda.yaml file
+        endpoint : str
+            deployment space name
+        rewrite : bool, optional
+            whether to rewrite the existing software specification, by default False
+
+        Returns
+        -------
+        str
+            id of the software specification
+        """
         client = self.get_wml_client(endpoint=endpoint)
         software_spec_id = create_custom_software_spec(
             client=client,
             name=name,
-            base_sofware_spec=base_software_spec,
             custom_packages=custom_packages,
             conda_yaml=conda_yaml,
             rewrite=rewrite,
