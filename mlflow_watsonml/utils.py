@@ -1,14 +1,17 @@
+import logging
 import os
 import zipfile
-from typing import Dict, List
+from typing import Dict, List, Optional
 
+import yaml
 from ibm_watson_machine_learning.client import APIClient
 from mlflow.exceptions import ENDPOINT_NOT_FOUND, MlflowException
-from tabulate import tabulate
+
+LOGGER = logging.getLogger(__name__)
 
 
-def list_models(client: APIClient) -> List[Dict]:
-    """lists models in WML repository
+def list_artifacts(client: APIClient) -> List[Dict]:
+    """lists artifacts in WML repository
 
     Parameters
     ----------
@@ -18,14 +21,59 @@ def list_models(client: APIClient) -> List[Dict]:
     Returns
     -------
     List[Dict]
-        list of model details dictionary
+        list of artifact details dictionary
     """
-    models = client.repository.get_model_details(get_all=True)["resources"]
+    artifacts = client.repository.get_details()["resources"]
 
-    for model in models:
-        model["name"] = model["metadata"]["name"]
+    for artifact in artifacts:
+        artifact["name"] = artifact["metadata"]["name"]
 
-    return models
+    return artifacts
+
+
+def get_artifact_id_from_artifact_name(client: APIClient, artifact_name: str) -> str:
+    """Returns artifact ID from artifact name
+
+    Parameters
+    ----------
+    artifact_name : str
+        artifact name
+
+    Returns
+    -------
+    str
+        artifact id
+    """
+    artifacts = list_artifacts(client=client)
+
+    try:
+        return next(item for item in artifacts if item["name"] == artifact_name)[
+            "metadata"
+        ]["id"]
+    except StopIteration as _:
+        message = f"artifact {artifact_name} not found"
+        LOGGER.exception(message)
+        raise MlflowException(message=message, error_code=ENDPOINT_NOT_FOUND)
+
+
+def artifact_exists(client: APIClient, name: str) -> bool:
+    """Checks if a artifact by the given name exists
+
+    Parameters
+    ----------
+    client : APIClient
+        WML client
+    name : str
+        name of the artifact
+
+    Returns
+    -------
+    bool
+        True if the artifact exists else False
+    """
+    artifacts = list_artifacts(client=client)
+
+    return any(item for item in artifacts if item["name"] == name)
 
 
 def list_deployments(client: APIClient) -> List[Dict]:
@@ -45,7 +93,7 @@ def list_deployments(client: APIClient) -> List[Dict]:
 
     # `name` is a required key in each deployment
     for deployment in deployments:
-        deployment["name"] = deployment["entity"]["name"]
+        deployment["name"] = deployment["metadata"]["name"]
 
     return deployments
 
@@ -68,11 +116,13 @@ def get_deployment(client: APIClient, name: str) -> Dict:
     deployments = list_deployments(client=client)
 
     try:
-        return next(item for item in deployments if item["entity"]["name"] == name)
+        return next(item for item in deployments if item["name"] == name)
 
     except StopIteration as _:
+        message = f"no deployment by the name {name} exists"
+        LOGGER.exception(message)
         raise MlflowException(
-            message=f"no deployment by the name {name} exists",
+            message=message,
             error_code=ENDPOINT_NOT_FOUND,
         )
 
@@ -92,97 +142,9 @@ def get_deployment_id_from_deployment_name(
     str
         deployment id
     """
-    return get_deployment(client=client, name=deployment_name)["metadata"]["id"]
-
-
-def get_model_id_from_model_name(client: APIClient, model_name: str) -> str:
-    """Returns model ID from model name
-
-    Parameters
-    ----------
-    model_name : str
-        model name
-
-    Returns
-    -------
-    str
-        model id
-    """
-    models = list_models(client=client)
-
-    try:
-        return next(item for item in models if item["name"] == model_name)["metadata"][
-            "id"
-        ]
-    except StopIteration as _:
-        raise MlflowException(
-            message=f"model {model_name} not found", error_code=ENDPOINT_NOT_FOUND
-        )
-
-
-def get_space_id_from_space_name(client: APIClient, space_name: str) -> str:
-    """Returns space ID from the space name
-
-    Parameters
-    ----------
-    client : APIClient
-        WML client
-    space_name : str
-        space name
-
-    Returns
-    -------
-    str
-        space id
-    """
-    spaces = client.spaces.get_details()["resources"]
-
-    try:
-        return next(item for item in spaces if item["entity"]["name"] == space_name)[
-            "metadata"
-        ]["id"]
-    except StopIteration as _:
-        raise MlflowException(
-            message=f"space {space_name} not found", error_code=ENDPOINT_NOT_FOUND
-        )
-
-
-def get_model_id_from_model_details(client: APIClient, model_details: Dict) -> str:
-    """Return model ID from model details dictionary
-
-    Parameters
-    ----------
-    model_details : Dict
-        model details dictionary
-
-    Returns
-    -------
-    str
-        model id
-    """
-    model_id = client.repository.get_model_id(model_details=model_details)
-    return model_id
-
-
-def get_deployment_id_from_deployment_details(
-    client: APIClient, deployment_details: Dict
-) -> str:
-    """Return deployment ID from deployment details dictionary
-
-    Parameters
-    ----------
-    client : APIClient
-        WML client
-    deployment_details : Dict
-        deployment details dictionary
-
-    Returns
-    -------
-    str
-        deployment id
-    """
-    deployment_id = client.deployments.get_id(deployment_details=deployment_details)
-    return deployment_id
+    return client.deployments.get_id(
+        get_deployment(client=client, name=deployment_name)
+    )
 
 
 def deployment_exists(client: APIClient, name: str) -> bool:
@@ -204,89 +166,92 @@ def deployment_exists(client: APIClient, name: str) -> bool:
     return any(item for item in deployments if item["name"] == name)
 
 
-def model_exists(client: APIClient, name: str) -> bool:
-    """Checks if a model by the given name exists
+def get_space_id_from_space_name(client: APIClient, space_name: str) -> Optional[str]:
+    """Returns space ID from the space name
+
+    Parameters
+    ----------
+    client : APIClient
+        WML client
+    space_name : str
+        space name
+
+    Returns
+    -------
+    str | None
+        space id
+    """
+    spaces = client.spaces.get_details(get_all=True)["resources"]
+
+    try:
+        return next(item for item in spaces if item["entity"]["name"] == space_name)[
+            "metadata"
+        ]["id"]
+    except StopIteration as _:
+        message = f"space {space_name} not found"
+        LOGGER.warn(message)
+        # raise MlflowException(message=message, error_code=ENDPOINT_NOT_FOUND)
+        return None
+
+
+def software_spec_exists(client: APIClient, name: str) -> bool:
+    """Check if a given software specification exists.
 
     Parameters
     ----------
     client : APIClient
         WML client
     name : str
-        name of the model
+        name of the software specification
 
     Returns
     -------
     bool
-        True if the model exists else False
+        True if the software specification exists, else False
     """
-    models = list_models(client=client)
+    software_spec = client.software_specifications.get_id_by_name(sw_spec_name=name)
+    return software_spec != "Not Found"
 
-    return any(item for item in models if item["name"] == name)
 
-
-def print_package_specifications(
-    client: APIClient, software_spec: str = "runtime-22.2-py3.10"
-) -> None:
-    """Print the package spec along with version to use as reference for creating an env
+def get_software_spec_from_deployment_name(
+    client: APIClient, deployment_name: str
+) -> str:
+    """Get software specification id for the given deployment
 
     Parameters
     ----------
     client : APIClient
-        WML Client
-    software_spec : str, optional
-        Software Spec, by default "runtime-22.2-py3.10"
+        WML client
+    deployment_name : str
+        name of the deployment
+
+    Returns
+    -------
+    str
+        software specification id
     """
-    pkg_specs = client.software_specifications.get_details(
-        client.software_specifications.get_id_by_name(software_spec)
-    )["entity"]["software_specification"]["software_configuration"]["included_packages"]
+    deployment = get_deployment(client=client, name=deployment_name)
+    artifact_id = deployment["entity"]["asset"]["id"]
+    software_spec_id = client.repository.get_details(artifact_uid=artifact_id)[
+        "entity"
+    ]["software_spec"]["id"]
 
-    print(tabulate(pkg_specs, headers="keys"))
-
-
-def list_endpoints(client: APIClient) -> List[Dict]:
-    endpoints = client.spaces.get_details(get_all=True)["resources"]
-    return endpoints
-
-
-def get_endpoint(client: APIClient, endpoint: str):
-    deployment_space_id = get_space_id_from_space_name(
-        client=client, space_name=endpoint
-    )
-    endpoint_details = client.spaces.get_details(space_id=deployment_space_id)
-    return endpoint_details
-
-
-def list_software_specs(client: APIClient) -> List[Dict]:
-    sw_specs = client.software_specifications.get_details()["resources"]
-    return sw_specs
-
-
-def get_software_spec(client: APIClient, sw_spec: str) -> Dict:
-    sw_specs = list_software_specs(client=client)
-
-    try:
-        return next(item for item in sw_specs if item["metadata"]["name"] == sw_spec)[
-            "metadata"
-        ]["id"]
-    except StopIteration as _:
-        raise MlflowException(
-            message=f"Software Specifiction - {sw_spec} not found",
-            error_code=ENDPOINT_NOT_FOUND,
-        )
-
-
-def software_spec_exists(client: APIClient, sw_spec: str) -> bool:
-    sw_specs = list_software_specs(client=client)
-
-    return any(item for item in sw_specs if item["metadata"]["name"] == sw_spec)
-
-
-def delete_sw_spec(client, name):
-    sw_spec_id = client.software_specifications.get_id_by_name(name)
-    client.software_specifications.delete(sw_spec_id)
+    return software_spec_id
 
 
 def is_zipfile(file_path: str) -> bool:
+    """Utility method to check if the given file path is a valid zip file.
+
+    Parameters
+    ----------
+    file_path : str
+        path to zip file
+
+    Returns
+    -------
+    bool
+        True if it is a valid zip file, else False
+    """
     if not os.path.isfile(file_path):
         return False
 
@@ -295,3 +260,27 @@ def is_zipfile(file_path: str) -> bool:
             return zf.testzip() is None
     except zipfile.BadZipFile:
         return False
+
+
+def refine_conda_yaml(conda_yaml: str) -> str:
+    with open(conda_yaml, "r", encoding="utf-8") as f:
+        env_data = yaml.safe_load(f)
+
+    pip_dependencies = []
+
+    for dep in env_data["dependencies"]:
+        if isinstance(dep, dict):
+            if "pip" in dep.keys():
+                pip_dependencies.extend(dep["pip"])
+
+    refined_env = {
+        "channels": ["defaults"],
+        "dependencies": [
+            "pip",
+            {"pip": pip_dependencies},
+        ],
+        "name": "mlflow-env",
+    }
+
+    with open(conda_yaml, "w", encoding="utf-8") as f:
+        yaml.safe_dump(refined_env, f)

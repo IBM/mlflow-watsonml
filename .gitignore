@@ -133,3 +133,5 @@ mlruns/
 
 # playground file
 playground.py
+_version.py
+.DS_Store
