@@ -1,7 +1,7 @@
 import logging
 import os
 from types import FunctionType
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 from ibm_watson_machine_learning.client import APIClient
 from mlflow.exceptions import MlflowException
@@ -79,13 +79,14 @@ def store_model(
     return (model_id, rev_id)
 
 
-def store_function(
+def store_or_update_function(
     client: APIClient,
     deployable_function: FunctionType,
     function_name: str,
     software_spec_uid: str,
+    function_id: Optional[str] = None,
 ) -> Tuple[str, str]:
-    """Store function in WML repository
+    """Store or update function in WML repository
 
     Parameters
     ----------
@@ -97,6 +98,9 @@ def store_function(
         name of the function
     software_spec_uid : str
         software specification id
+    function_id: str, optional
+        asset id of the function to be updated
+        by default None
 
     Returns
     -------
@@ -109,21 +113,32 @@ def store_function(
     }
 
     try:
-        function_details = client.repository.store_function(
-            function=deployable_function,
-            meta_props=metaprops,
-        )
-        LOGGER.info(function_details)
-        LOGGER.info(f"Stored function {function_name} in the repository.")
+        if function_id is None:
+            function_details = client.repository.store_function(
+                function=deployable_function,
+                meta_props=metaprops,
+            )
+            LOGGER.info(function_details)
+            LOGGER.info(f"Stored function {function_name} in the repository.")
 
-        function_id = client.repository.get_function_id(
-            function_details=function_details
-        )
-
-        revision_details = client.repository.create_function_revision(
-            function_uid=client.repository.get_function_id(
+            function_id = client.repository.get_function_id(
                 function_details=function_details
             )
+        else:
+            function_details = client.repository.update_function(
+                function_uid=function_id,
+                changes=metaprops,
+                update_function=deployable_function,
+            )
+            LOGGER.info(function_details)
+            LOGGER.info(f"Updated function {function_name} in the repository.")
+
+            function_id = client.repository.get_function_id(
+                function_details=function_details
+            )
+
+        revision_details = client.repository.create_function_revision(
+            function_uid=function_id
         )
         rev_id = revision_details["metadata"].get("rev")
         LOGGER.info(revision_details)
@@ -131,13 +146,18 @@ def store_function(
             f"Created function revision for function {function_name} and version {rev_id}"
         )
     except Exception as e:
+        LOGGER.exception(e)
         raise MlflowException(e)
 
     return (function_id, rev_id)
 
 
 def store_onnx_artifact(
-    client: APIClient, model_uri: str, artifact_name: str, software_spec_id: str
+    client: APIClient,
+    model_uri: str,
+    artifact_name: str,
+    software_spec_id: str,
+    artifact_id: Optional[str] = None,
 ):
     config = get_s3_creds()
 
@@ -178,18 +198,23 @@ def store_onnx_artifact(
 
         return score
 
-    function_id, rev_id = store_function(
+    function_id, rev_id = store_or_update_function(
         client=client,
         deployable_function=deployable_onnx_scorer,
         function_name=artifact_name,
         software_spec_uid=software_spec_id,
+        function_id=artifact_id,
     )
 
     return (function_id, rev_id)
 
 
 def store_sklearn_artifact(
-    client: APIClient, model_uri: str, artifact_name: str, software_spec_id: str
+    client: APIClient,
+    model_uri: str,
+    artifact_name: str,
+    software_spec_id: str,
+    artifact_id: Optional[str] = None,
 ):
     config = get_s3_creds()
 
@@ -221,11 +246,12 @@ def store_sklearn_artifact(
 
         return score
 
-    function_id, rev_id = store_function(
+    function_id, rev_id = store_or_update_function(
         client=client,
         deployable_function=deployable_sklearn_scorer,
         function_name=artifact_name,
         software_spec_uid=software_spec_id,
+        function_id=artifact_id,
     )
 
     return (function_id, rev_id)
