@@ -279,34 +279,34 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         artifact_id = current_deployment["entity"]["asset"]["id"]
         artifact_rev = int(current_deployment["entity"]["asset"]["rev"])
 
-        if "software_spec_name" in config.keys():
-            software_spec_id = client.software_specifications.get_id_by_name(
-                config["software_spec_name"]
-            )
+        # if "software_spec_name" in config.keys():
+        #     software_spec_id = client.software_specifications.get_id_by_name(
+        #         config["software_spec_name"]
+        #     )
 
-            if software_spec_id == "Not Found":
-                raise MlflowException(
-                    f"Software Specification {config['software_spec_name']} not found.",
-                    error_code=INVALID_PARAMETER_VALUE,
-                )
+        #     if software_spec_id == "Not Found":
+        #         raise MlflowException(
+        #             f"Software Specification {config['software_spec_name']} not found.",
+        #             error_code=INVALID_PARAMETER_VALUE,
+        #         )
 
-        else:
-            if "conda_yaml" in config.keys():
-                conda_yaml = config["conda_yaml"]
-            else:
-                conda_yaml = mlflow.pyfunc.get_model_dependencies(
-                    model_uri=model_uri, format="conda"
-                )  # other option is to have a default conda_yaml for each flavor
+        # else:
+        #     if "conda_yaml" in config.keys():
+        #         conda_yaml = config["conda_yaml"]
+        #     else:
+        #         conda_yaml = mlflow.pyfunc.get_model_dependencies(
+        #             model_uri=model_uri, format="conda"
+        #         )  # other option is to have a default conda_yaml for each flavor
 
-            custom_packages: List[str] = config.get("custom_packages")
+        #     custom_packages: List[str] = config.get("custom_packages")
 
-            software_spec_id = create_custom_software_spec(
-                client=client,
-                name=f"{name}_sw_spec",
-                custom_packages=custom_packages,
-                conda_yaml=conda_yaml,
-                rewrite=True,
-            )
+        #     software_spec_id = create_custom_software_spec(
+        #         client=client,
+        #         name=f"{name}_sw_spec",
+        #         custom_packages=custom_packages,
+        #         conda_yaml=conda_yaml,
+        #         rewrite=True,
+        #     )
 
         new_artifact_name = f"{name}_v{artifact_rev+1}"
 
@@ -315,7 +315,7 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
                 client=client,
                 model_uri=model_uri,
                 artifact_name=new_artifact_name,
-                software_spec_id=software_spec_id,
+                software_spec_id=None,
                 artifact_id=artifact_id,
             )
 
@@ -324,7 +324,7 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
                 client=client,
                 model_uri=model_uri,
                 artifact_name=new_artifact_name,
-                software_spec_id=software_spec_id,
+                software_spec_id=None,
                 artifact_id=artifact_id,
             )
 

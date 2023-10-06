@@ -125,6 +125,7 @@ def store_or_update_function(
                 function_details=function_details
             )
         else:
+            metaprops.pop(client.repository.FunctionMetaNames.SOFTWARE_SPEC_ID)
             function_details = client.repository.update_function(
                 function_uid=function_id,
                 changes=metaprops,
