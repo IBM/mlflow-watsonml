@@ -1,4 +1,3 @@
-import logging
 from typing import Dict, List, Optional, Union
 
 import mlflow
@@ -14,12 +13,10 @@ from mlflow.protos.databricks_pb2 import (
 )
 
 from mlflow_watsonml.config import Config
+from mlflow_watsonml.logging import LOGGER
 from mlflow_watsonml.store import *
 from mlflow_watsonml.utils import *
 from mlflow_watsonml.wml import *
-
-LOGGER = logging.getLogger(__name__)
-LOGGER.setLevel(logging.INFO)
 
 
 def target_help():
@@ -144,7 +141,8 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
             possible optional configuration keys are -
             - "software_spec_name" : name of the software specification to reuse
             - "conda_yaml" : filepath of conda.yaml file
-            - "custom_packages": a list of dict containing `name` and `file` keys
+            - "custom_packages": a list of str - zip file paths of the packages
+            - "rewrite_software_spec": bool whether to rewrite the software spec
         endpoint : str
             deployment space name
 
@@ -203,6 +201,7 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
                 model_uri=model_uri,
                 artifact_name=artifact_name,
                 software_spec_id=software_spec_id,
+                artifact_id=None,
             )
 
         elif flavor == "onnx":
@@ -211,6 +210,7 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
                 model_uri=model_uri,
                 artifact_name=artifact_name,
                 software_spec_id=software_spec_id,
+                artifact_id=None,
             )
 
         else:
@@ -234,10 +234,10 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
     def update_deployment(
         self,
         name: str,
-        model_uri: Optional[str] = None,
-        flavor: Optional[str] = None,
-        config: Optional[Dict] = None,
-        endpoint: Optional[str] = None,
+        model_uri: str,
+        flavor: str,
+        config: Optional[Dict],
+        endpoint: str,
     ) -> Dict:
         """Update the deployment with the specified name. You can update the URI of the model, the
         flavor of the deployed model (in which case the model URI must also be specified). By default,
@@ -248,25 +248,100 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         ----------
         name : str
             Unique name of the deployment to update
-        model_uri : Optional[str], optional
-            URI of a new model to deploy, by default None
-        flavor : Optional[str], optional
+        model_uri : str
+            URI of a new model to deploy
+        flavor : str
             new model flavor to use for deployment. If provided,
-            ``model_uri`` must also be specified. If ``flavor`` is unspecified but
-            ``model_uri`` is specified, a default flavor will be chosen and the
-            deployment will be updated using that flavor., by default None
+            ``model_uri`` must also be specified.
         config : Optional[Dict], optional
             dict containing updated WML-specific configuration for the
-            deployment, by default None
-        endpoint : Optional[str], optional
-            deployment space name, by default None
+        endpoint : str
+            deployment space name
 
         Returns
         -------
         Dict
             deployment details dictionary
         """
-        raise NotImplementedError()
+        client = self.get_wml_client(endpoint=endpoint)
+
+        if config is None:
+            config = dict()
+
+        # check if a deployment by that name exists
+        if not deployment_exists(client=client, name=name):
+            raise MlflowException(
+                f"Deployment {name} doesn't exist. Use `create_deployment()`",
+                error_code=INVALID_PARAMETER_VALUE,
+            )
+
+        current_deployment = self.get_deployment(name=name, endpoint=endpoint)
+        artifact_id = current_deployment["entity"]["asset"]["id"]
+        artifact_rev = int(current_deployment["entity"]["asset"]["rev"])
+
+        # if "software_spec_name" in config.keys():
+        #     software_spec_id = client.software_specifications.get_id_by_name(
+        #         config["software_spec_name"]
+        #     )
+
+        #     if software_spec_id == "Not Found":
+        #         raise MlflowException(
+        #             f"Software Specification {config['software_spec_name']} not found.",
+        #             error_code=INVALID_PARAMETER_VALUE,
+        #         )
+
+        # else:
+        #     if "conda_yaml" in config.keys():
+        #         conda_yaml = config["conda_yaml"]
+        #     else:
+        #         conda_yaml = mlflow.pyfunc.get_model_dependencies(
+        #             model_uri=model_uri, format="conda"
+        #         )  # other option is to have a default conda_yaml for each flavor
+
+        #     custom_packages: List[str] = config.get("custom_packages")
+
+        #     software_spec_id = create_custom_software_spec(
+        #         client=client,
+        #         name=f"{name}_sw_spec",
+        #         custom_packages=custom_packages,
+        #         conda_yaml=conda_yaml,
+        #         rewrite=True,
+        #     )
+
+        new_artifact_name = f"{name}_v{artifact_rev+1}"
+
+        if flavor == "sklearn":
+            artifact_id, revision_id = store_sklearn_artifact(
+                client=client,
+                model_uri=model_uri,
+                artifact_name=new_artifact_name,
+                software_spec_id=None,
+                artifact_id=artifact_id,
+            )
+
+        elif flavor == "onnx":
+            artifact_id, revision_id = store_onnx_artifact(
+                client=client,
+                model_uri=model_uri,
+                artifact_name=new_artifact_name,
+                software_spec_id=None,
+                artifact_id=artifact_id,
+            )
+
+        else:
+            raise MlflowException(
+                f"Flavor {flavor} is invalid or not implemented",
+                error_code=NOT_IMPLEMENTED,
+            )
+
+        deployment_details = update_deployment(
+            client=client,
+            name=name,
+            artifact_id=artifact_id,
+            revision_id=revision_id,
+        )
+
+        return deployment_details
 
     def delete_deployment(
         self, name: str, config: Optional[Dict] = None, endpoint: Optional[str] = None

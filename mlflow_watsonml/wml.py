@@ -112,7 +112,7 @@ def delete_deployment(client: APIClient, name: str):
         raise MlflowException(e)
 
 
-def update_model(
+def update_artifact(
     client: APIClient,
     deployment_name: str,
     updated_model_config: Dict = {},
@@ -151,7 +151,7 @@ def update_model(
 def update_deployment(
     client: APIClient,
     name: str,
-    model_id: str,
+    artifact_id: str,
     revision_id: str,
 ):
     deployment_id = get_deployment_id_from_deployment_name(
@@ -159,7 +159,7 @@ def update_deployment(
     )
     metadata = {
         client.deployments.ConfigurationMetaNames.ASSET: {
-            "id": model_id,
+            "id": artifact_id,
             "rev": revision_id,
         }
     }
