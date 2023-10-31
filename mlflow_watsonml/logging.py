@@ -3,4 +3,4 @@ import sys
 
 LOGGER = logging.getLogger("mlflow-watsonml")
 LOGGER.setLevel(logging.INFO)
-LOGGER.addHandler(logging.StreamHandler(sys.stdout))
+LOGGER.addHandler(logging.FileHandler("app.log"))
