@@ -3,6 +3,7 @@ import os
 from types import FunctionType
 from typing import Any, Dict, Optional, Tuple
 
+import mlflow
 from ibm_watson_machine_learning.client import APIClient
 from mlflow.exceptions import MlflowException
 
@@ -10,20 +11,22 @@ LOGGER = logging.getLogger(__name__)
 
 
 # TODO: implement logic to make sure the environment variables are set
-def get_s3_creds():
+def get_s3_creds() -> Dict:
     return {
+        "MLFLOW_TRACKING_URI": os.environ.get("MLFLOW_TRACKING_URI"),
         "MLFLOW_S3_ENDPOINT_URL": os.environ.get("MLFLOW_S3_ENDPOINT_URL"),
         "AWS_SECRET_ACCESS_KEY": os.environ.get("AWS_SECRET_ACCESS_KEY"),
         "AWS_ACCESS_KEY_ID": os.environ.get("AWS_ACCESS_KEY_ID"),
     }
 
 
-def store_model(
+def store_or_update_model(
     client: APIClient,
     model_object: Any,
-    software_spec_uid: str,
     model_name: str,
     model_type: str,
+    software_spec_uid: str,
+    model_id: Optional[str] = None,
 ) -> Tuple[str, str]:
     """Store model_object in a WML repository
 
@@ -33,41 +36,60 @@ def store_model(
         WML client
     model_object : Any
         artifact object
-    software_spec_uid : str
-        uid of software specification
     model_name : str
         name of the model
     model_type : str
         type of model
+    software_spec_uid : str
+        uid of software specification
+    model_id : str, optional
+        asset id of the model to be updated
+        by default None
 
     Returns
     -------
     Tuple[str, str]
         model id, model revision id
     """
-    model_props = {
-        client.repository.ModelMetaNames.NAME: model_name,
-        client.repository.ModelMetaNames.SOFTWARE_SPEC_UID: software_spec_uid,
-        client.repository.ModelMetaNames.TYPE: model_type,
-    }
 
     try:
-        model_details = client.repository.store_model(
-            model=model_object,
-            meta_props=model_props,
-            training_data=None,
-            training_target=None,
-            feature_names=None,
-            label_column_names=None,
-        )
-        LOGGER.info(model_details)
-        LOGGER.info(f"Stored model {model_name} in the repository.")
+        if model_id is None:
+            model_props = {
+                client.repository.ModelMetaNames.NAME: model_name,
+                client.repository.ModelMetaNames.SOFTWARE_SPEC_UID: software_spec_uid,
+                client.repository.ModelMetaNames.TYPE: model_type,
+            }
+            model_details = client.repository.store_model(
+                model=model_object,
+                meta_props=model_props,
+                training_data=None,
+                training_target=None,
+                feature_names=None,
+                label_column_names=None,
+            )
+            LOGGER.info(model_details)
+            LOGGER.info(f"Stored model {model_name} in the repository.")
 
-        model_id = client.repository.get_model_id(model_details=model_details)
+            model_id = client.repository.get_model_id(model_details=model_details)
+        else:
+            model_props = {
+                client.repository.ModelMetaNames.NAME: model_name,
+                client.repository.ModelMetaNames.SOFTWARE_SPEC_UID: software_spec_uid,
+                client.repository.ModelMetaNames.TYPE: model_type,
+            }
+            model_details = client.repository.update_model(
+                model_uid=model_id,
+                updated_meta_props=model_props,
+                update_model=model_object,
+            )
+            LOGGER.info(model_details)
+            LOGGER.info(f"Updated model {model_name} in the repository.")
+
+            model_id = client.repository.get_model_id(model_details=model_details)
 
         revision_details = client.repository.create_model_revision(model_uid=model_id)
 
-        rev_id = revision_details["metadata"].get("rev")
+        rev_id = revision_details["metadata"]["rev"]
         LOGGER.info(revision_details)
         LOGGER.info(
             f"Created model revision for model {model_name} and version {rev_id}"
@@ -107,13 +129,12 @@ def store_or_update_function(
     Tuple[str, str]
         function id and function revisin id
     """
-    metaprops = {
-        client.repository.FunctionMetaNames.NAME: function_name,
-        client.repository.FunctionMetaNames.SOFTWARE_SPEC_ID: software_spec_uid,
-    }
-
     try:
         if function_id is None:
+            metaprops = {
+                client.repository.FunctionMetaNames.NAME: function_name,
+                client.repository.FunctionMetaNames.SOFTWARE_SPEC_ID: software_spec_uid,
+            }
             function_details = client.repository.store_function(
                 function=deployable_function,
                 meta_props=metaprops,
@@ -125,7 +146,9 @@ def store_or_update_function(
                 function_details=function_details
             )
         else:
-            metaprops.pop(client.repository.FunctionMetaNames.SOFTWARE_SPEC_ID)
+            metaprops = {
+                client.repository.FunctionMetaNames.NAME: function_name,
+            }
             function_details = client.repository.update_function(
                 function_uid=function_id,
                 changes=metaprops,
@@ -141,7 +164,7 @@ def store_or_update_function(
         revision_details = client.repository.create_function_revision(
             function_uid=function_id
         )
-        rev_id = revision_details["metadata"].get("rev")
+        rev_id = revision_details["metadata"]["rev"]
         LOGGER.info(revision_details)
         LOGGER.info(
             f"Created function revision for function {function_name} and version {rev_id}"
@@ -159,7 +182,27 @@ def store_onnx_artifact(
     artifact_name: str,
     software_spec_id: str,
     artifact_id: Optional[str] = None,
-):
+) -> Tuple[str, str]:
+    """store onnx artifact in WML
+
+    Parameters
+    ----------
+    client : APIClient
+        WML client
+    model_uri : str
+        model URI
+    artifact_name : str
+        name of the artifact
+    software_spec_id : str
+        id of software specification
+    artifact_id : Optional[str], optional
+        artifact id of the stored model, by default None
+
+    Returns
+    -------
+    Tuple[str, str]
+        model id, revision id
+    """
     config = get_s3_creds()
 
     # the args have to be passed as default value in the scorer
@@ -176,6 +219,8 @@ def store_onnx_artifact(
                 os.environ[key] = value
 
             artifact_dir = os.path.join(tempfile.gettempdir(), "artifacts")
+
+            # `download_artifacts` returns the local path if it's already been downloaded
             artifact_file = mlflow.artifacts.download_artifacts(
                 artifact_uri=artifact_uri, dst_path=artifact_dir
             )
@@ -216,43 +261,35 @@ def store_sklearn_artifact(
     artifact_name: str,
     software_spec_id: str,
     artifact_id: Optional[str] = None,
-):
-    config = get_s3_creds()
+) -> Tuple[str, str]:
+    """store sklearn artifact in WML
 
-    # the args have to be passed as default value in the scorer
-    def deployable_sklearn_scorer(model_uri=model_uri, config=config):
-        import os
+    Parameters
+    ----------
+    client : APIClient
+        WML client
+    model_uri : str
+        model URI
+    artifact_name : str
+        name of the artifact
+    software_spec_id : str
+        id of software specification
+    artifact_id : Optional[str], optional
+        artifact id of the stored model, by default None
 
-        import mlflow
-
-        def score(payload: dict):
-            for key, value in config.items():
-                os.environ[key] = value
-
-            model = mlflow.sklearn.load_model(model_uri=model_uri)
-
-            if model is None:
-                return {"predictions": [{"values": "no model found"}]}
-
-            scoring_output = {"predictions": []}
-
-            for data in payload["input_data"]:
-                values = data.get("values")
-                # fields = data.get("fields")
-                predictions = model.predict(values)
-
-                scoring_output["predictions"].append({"values": predictions.tolist()})
-
-            return scoring_output
-
-        return score
-
-    function_id, rev_id = store_or_update_function(
+    Returns
+    -------
+    Tuple[str, str]
+        model id, revision id
+    """
+    model_object = mlflow.sklearn.load_model(model_uri=model_uri)
+    model_id, rev_id = store_or_update_model(
         client=client,
-        deployable_function=deployable_sklearn_scorer,
-        function_name=artifact_name,
+        model_object=model_object,
+        model_name=artifact_name,
+        model_type="scikit-learn_1.1",
         software_spec_uid=software_spec_id,
-        function_id=artifact_id,
+        model_id=artifact_id,
     )
 
-    return (function_id, rev_id)
+    return (model_id, rev_id)
