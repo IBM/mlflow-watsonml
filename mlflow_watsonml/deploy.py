@@ -402,9 +402,18 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         """
         client = self.get_wml_client(endpoint=endpoint)
 
+        deployment_details = self.get_deployment(
+            name=deployment_name, endpoint=endpoint
+        )
+
         scoring_payload = {
             client.deployments.ScoringMetaNames.INPUT_DATA: [{"values": inputs}]
         }
+
+        if "custom" in deployment_details["entity"]["asset"].keys():
+            scoring_payload[
+                client.deployments.ScoringMetaNames.ENVIRONMENT_VARIABLES
+            ] = deployment_details["entity"]["asset"]["custom"]
 
         deployment_id = get_deployment_id_from_deployment_name(
             client=client, deployment_name=deployment_name
