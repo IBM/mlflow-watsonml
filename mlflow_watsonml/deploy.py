@@ -203,6 +203,7 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         )
 
         batch = config.get("batch", False)
+        environment_variables = get_mlflow_config()
 
         deployment_details = deploy(
             client=client,
@@ -210,6 +211,7 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
             artifact_id=artifact_id,
             revision_id=revision_id,
             batch=batch,
+            environment_variables=environment_variables,
         )
 
         return deployment_details

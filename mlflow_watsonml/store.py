@@ -10,16 +10,6 @@ from mlflow.exceptions import MlflowException
 LOGGER = logging.getLogger(__name__)
 
 
-# TODO: implement logic to make sure the environment variables are set
-def get_s3_creds() -> Dict:
-    return {
-        "MLFLOW_TRACKING_URI": os.environ.get("MLFLOW_TRACKING_URI"),
-        "MLFLOW_S3_ENDPOINT_URL": os.environ.get("MLFLOW_S3_ENDPOINT_URL"),
-        "AWS_SECRET_ACCESS_KEY": os.environ.get("AWS_SECRET_ACCESS_KEY"),
-        "AWS_ACCESS_KEY_ID": os.environ.get("AWS_ACCESS_KEY_ID"),
-    }
-
-
 def store_or_update_model(
     client: APIClient,
     model_object: Any,
@@ -203,10 +193,9 @@ def store_onnx_artifact(
     Tuple[str, str]
         model id, revision id
     """
-    config = get_s3_creds()
 
     # the args have to be passed as default value in the scorer
-    def deployable_onnx_scorer(artifact_uri=model_uri, config=config):
+    def deployable_onnx_scorer(artifact_uri=model_uri):
         import os
         import tempfile
 
@@ -215,9 +204,6 @@ def store_onnx_artifact(
         from onnxruntime import InferenceSession  # type: ignore
 
         def score(payload: dict):
-            for key, value in config.items():
-                os.environ[key] = value
-
             artifact_dir = os.path.join(tempfile.gettempdir(), "artifacts")
 
             # `download_artifacts` returns the local path if it's already been downloaded
