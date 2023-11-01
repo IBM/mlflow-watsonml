@@ -211,8 +211,8 @@ def store_onnx_artifact(
         import tempfile
 
         import mlflow
-        import onnx
-        from onnxruntime import InferenceSession
+        import onnx  # type: ignore
+        from onnxruntime import InferenceSession  # type: ignore
 
         def score(payload: dict):
             for key, value in config.items():
