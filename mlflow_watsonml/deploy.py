@@ -415,21 +415,25 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
                 client.deployments.ScoringMetaNames.ENVIRONMENT_VARIABLES
             ] = deployment_details["entity"]["asset"]["custom"]
 
-        deployment_id = get_deployment_id_from_deployment_name(
-            client=client, deployment_name=deployment_name
-        )
+        deployment_id = client.deployments.get_id(deployment_details=deployment_details)
 
         predictions = client.deployments.score(
             deployment_id=deployment_id, meta_props=scoring_payload
         )["predictions"]
 
-        # fields = predictions[0]["fields"]
+        if (
+            len(predictions) > 0
+            and isinstance(predictions[0], dict)
+            and "fields" in predictions[0].keys()
+        ):
+            fields = predictions[0]["fields"]
 
-        # frames = []
-        # for prediction in predictions:
-        #     frames.extend(prediction["values"])
+            frames = []
+            for prediction in predictions:
+                frames.extend(prediction["values"])
 
-        # ans = pd.DataFrame(frames, columns=fields)
+            ans = pd.DataFrame(frames, columns=fields)
+            return ans
 
         return predictions  # ans
 
