@@ -14,7 +14,6 @@ from mlflow.protos.databricks_pb2 import (
 
 from mlflow_watsonml.config import Config
 from mlflow_watsonml.logging import LOGGER
-from mlflow_watsonml.store import *
 from mlflow_watsonml.utils import *
 from mlflow_watsonml.wml import *
 
@@ -195,31 +194,16 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
 
         artifact_name = f"{name}_v1"
 
-        if flavor == "sklearn":
-            artifact_id, revision_id = store_sklearn_artifact(
-                client=client,
-                model_uri=model_uri,
-                artifact_name=artifact_name,
-                software_spec_id=software_spec_id,
-                artifact_id=None,
-            )
-
-        elif flavor == "onnx":
-            artifact_id, revision_id = store_onnx_artifact(
-                client=client,
-                model_uri=model_uri,
-                artifact_name=artifact_name,
-                software_spec_id=software_spec_id,
-                artifact_id=None,
-            )
-
-        else:
-            raise MlflowException(
-                f"Flavor {flavor} is invalid or not implemented",
-                error_code=NOT_IMPLEMENTED,
-            )
+        artifact_id, revision_id = store_or_update_artifact(
+            client=client,
+            model_uri=model_uri,
+            artifact_name=artifact_name,
+            flavor=flavor,
+            software_spec_id=software_spec_id,
+        )
 
         batch = config.get("batch", False)
+        environment_variables = get_mlflow_config()
 
         deployment_details = deploy(
             client=client,
@@ -227,6 +211,7 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
             artifact_id=artifact_id,
             revision_id=revision_id,
             batch=batch,
+            environment_variables=environment_variables,
         )
 
         return deployment_details
@@ -279,60 +264,44 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         artifact_id = current_deployment["entity"]["asset"]["id"]
         artifact_rev = int(current_deployment["entity"]["asset"]["rev"])
 
-        # if "software_spec_name" in config.keys():
-        #     software_spec_id = client.software_specifications.get_id_by_name(
-        #         config["software_spec_name"]
-        #     )
-
-        #     if software_spec_id == "Not Found":
-        #         raise MlflowException(
-        #             f"Software Specification {config['software_spec_name']} not found.",
-        #             error_code=INVALID_PARAMETER_VALUE,
-        #         )
-
-        # else:
-        #     if "conda_yaml" in config.keys():
-        #         conda_yaml = config["conda_yaml"]
-        #     else:
-        #         conda_yaml = mlflow.pyfunc.get_model_dependencies(
-        #             model_uri=model_uri, format="conda"
-        #         )  # other option is to have a default conda_yaml for each flavor
-
-        #     custom_packages: List[str] = config.get("custom_packages")
-
-        #     software_spec_id = create_custom_software_spec(
-        #         client=client,
-        #         name=f"{name}_sw_spec",
-        #         custom_packages=custom_packages,
-        #         conda_yaml=conda_yaml,
-        #         rewrite=True,
-        #     )
-
         new_artifact_name = f"{name}_v{artifact_rev+1}"
 
-        if flavor == "sklearn":
-            artifact_id, revision_id = store_sklearn_artifact(
-                client=client,
-                model_uri=model_uri,
-                artifact_name=new_artifact_name,
-                software_spec_id=None,
-                artifact_id=artifact_id,
+        if "software_spec_name" in config.keys():
+            software_spec_id = client.software_specifications.get_id_by_name(
+                config["software_spec_name"]
             )
 
-        elif flavor == "onnx":
-            artifact_id, revision_id = store_onnx_artifact(
-                client=client,
-                model_uri=model_uri,
-                artifact_name=new_artifact_name,
-                software_spec_id=None,
-                artifact_id=artifact_id,
-            )
+            if software_spec_id == "Not Found":
+                raise MlflowException(
+                    f"Software Specification {config['software_spec_name']} not found.",
+                    error_code=INVALID_PARAMETER_VALUE,
+                )
 
         else:
-            raise MlflowException(
-                f"Flavor {flavor} is invalid or not implemented",
-                error_code=NOT_IMPLEMENTED,
+            if "conda_yaml" in config.keys():
+                conda_yaml = config["conda_yaml"]
+            else:
+                conda_yaml = mlflow.pyfunc.get_model_dependencies(
+                    model_uri=model_uri, format="conda"
+                )  # other option is to have a default conda_yaml for each flavor
+
+            custom_packages: List[str] = config.get("custom_packages")
+
+            software_spec_id = create_custom_software_spec(
+                client=client,
+                name=f"{name}_sw_spec",
+                custom_packages=custom_packages,
+                conda_yaml=conda_yaml,
+                rewrite=True,
             )
+
+        artifact_id, revision_id = store_or_update_artifact(
+            client=client,
+            model_uri=model_uri,
+            artifact_name=new_artifact_name,
+            flavor=flavor,
+            software_spec_id=software_spec_id,
+        )
 
         deployment_details = update_deployment(
             client=client,
@@ -433,25 +402,38 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         """
         client = self.get_wml_client(endpoint=endpoint)
 
+        deployment_details = self.get_deployment(
+            name=deployment_name, endpoint=endpoint
+        )
+
         scoring_payload = {
             client.deployments.ScoringMetaNames.INPUT_DATA: [{"values": inputs}]
         }
 
-        deployment_id = get_deployment_id_from_deployment_name(
-            client=client, deployment_name=deployment_name
-        )
+        if "custom" in deployment_details["entity"]["asset"].keys():
+            scoring_payload[
+                client.deployments.ScoringMetaNames.ENVIRONMENT_VARIABLES
+            ] = deployment_details["entity"]["asset"]["custom"]
+
+        deployment_id = client.deployments.get_id(deployment_details=deployment_details)
 
         predictions = client.deployments.score(
             deployment_id=deployment_id, meta_props=scoring_payload
         )["predictions"]
 
-        # fields = predictions[0]["fields"]
+        if (
+            len(predictions) > 0
+            and isinstance(predictions[0], dict)
+            and "fields" in predictions[0].keys()
+        ):
+            fields = predictions[0]["fields"]
 
-        # frames = []
-        # for prediction in predictions:
-        #     frames.extend(prediction["values"])
+            frames = []
+            for prediction in predictions:
+                frames.extend(prediction["values"])
 
-        # ans = pd.DataFrame(frames, columns=fields)
+            ans = pd.DataFrame(frames, columns=fields)
+            return ans
 
         return predictions  # ans
 

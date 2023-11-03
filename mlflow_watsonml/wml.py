@@ -3,7 +3,9 @@ from typing import Any, Dict, Optional, Tuple
 
 from ibm_watson_machine_learning.client import APIClient
 from mlflow.exceptions import MlflowException
+from mlflow.protos.databricks_pb2 import NOT_IMPLEMENTED
 
+from mlflow_watsonml.store import *
 from mlflow_watsonml.utils import *
 
 LOGGER = logging.getLogger(__name__)
@@ -15,6 +17,7 @@ def deploy(
     artifact_id: str,
     revision_id: str,
     batch: bool = False,
+    environment_variables: Optional[Dict] = None,
 ) -> Dict:
     """Create a new WML deployment
 
@@ -35,11 +38,14 @@ def deploy(
     Dict
         deployment details dictionary
     """
+    if environment_variables is None:
+        environment_variables = dict()
 
     if batch:
         deployment_props = {
             client.deployments.ConfigurationMetaNames.NAME: name,
             client.deployments.ConfigurationMetaNames.BATCH: {},
+            client.deployments.ConfigurationMetaNames.CUSTOM: environment_variables,
             client.deployments.ConfigurationMetaNames.HARDWARE_SPEC: {},
             client.deployments.ConfigurationMetaNames.ASSET: {
                 "id": artifact_id,
@@ -49,6 +55,7 @@ def deploy(
     else:
         deployment_props = {
             client.deployments.ConfigurationMetaNames.NAME: name,
+            client.deployments.ConfigurationMetaNames.CUSTOM: environment_variables,
             client.deployments.ConfigurationMetaNames.ONLINE: {},
             client.deployments.ConfigurationMetaNames.ASSET: {
                 "id": artifact_id,
@@ -112,48 +119,12 @@ def delete_deployment(client: APIClient, name: str):
         raise MlflowException(e)
 
 
-def update_artifact(
-    client: APIClient,
-    deployment_name: str,
-    updated_model_config: Dict = {},
-    updated_model_object: Optional[Any] = None,
-) -> Tuple[str, str]:
-    try:
-        deployment_details = get_deployment(client=client, name=deployment_name)
-
-        model_id = deployment_details["entity"]["asset"]["id"]
-        model_rev = int(deployment_details["entity"]["asset"]["rev"]) + 1
-
-        if updated_model_object is not None:
-            updated_model_config[
-                client.repository.ModelMetaNames.NAME
-            ] = f"{deployment_name}_v{model_rev}"
-
-        updated_model_details = client.repository.update_model(
-            model_uid=model_id,
-            updated_meta_props=updated_model_config,
-            update_model=updated_model_object,
-        )
-
-        updated_model_id = client.repository.get_model_id(updated_model_details)
-
-        revised_model_details = client.repository.create_model_revision(
-            updated_model_id
-        )
-        revision_id = revised_model_details["metadata"]["rev"]
-
-    except Exception as e:
-        raise MlflowException(e)
-
-    return (updated_model_id, revision_id)
-
-
 def update_deployment(
     client: APIClient,
     name: str,
     artifact_id: str,
     revision_id: str,
-):
+) -> Dict:
     deployment_id = get_deployment_id_from_deployment_name(
         client=client, deployment_name=name
     )
@@ -169,6 +140,43 @@ def update_deployment(
     )
 
     LOGGER.info(updated_deployment)
+
+    return updated_deployment
+
+
+def store_or_update_artifact(
+    client: APIClient,
+    model_uri: str,
+    artifact_name: str,
+    flavor: str,
+    software_spec_id: str,
+    artifact_id: Optional[str] = None,
+) -> Tuple[str, str]:
+    if flavor == "sklearn":
+        artifact_id, revision_id = store_sklearn_artifact(
+            client=client,
+            model_uri=model_uri,
+            artifact_name=artifact_name,
+            software_spec_id=software_spec_id,
+            artifact_id=artifact_id,
+        )
+
+    elif flavor == "onnx":
+        artifact_id, revision_id = store_onnx_artifact(
+            client=client,
+            model_uri=model_uri,
+            artifact_name=artifact_name,
+            software_spec_id=software_spec_id,
+            artifact_id=artifact_id,
+        )
+
+    else:
+        raise MlflowException(
+            f"Flavor {flavor} is invalid or not implemented",
+            error_code=NOT_IMPLEMENTED,
+        )
+
+    return (artifact_id, revision_id)
 
 
 def create_custom_software_spec(
