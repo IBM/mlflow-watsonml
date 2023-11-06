@@ -49,7 +49,7 @@
 		}
 	},
 	// Use 'postCreateCommand' to run commands after the container is created.
-	"postCreateCommand": "pip install --upgrade pip; pip install --user -r requirements.txt; pip install -e ."
+	"postCreateCommand": "pip install --upgrade pip; pip install --user -r requirements.txt; pip install -e '.[dev]'"
 	// "containerEnv": {},
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	// "features": {},

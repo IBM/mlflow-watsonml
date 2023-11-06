@@ -22,7 +22,7 @@ setup(
         "onnx": ["onnx", "onnxruntime"],
     },
     entry_points={"mlflow.deployments": "watsonml=mlflow_watsonml.deploy"},
-    python_requires=">=3.8",
+    python_requires=">=3.9",
     use_scm_version=True,
     setup_requires=["setuptools_scm"],
 )
