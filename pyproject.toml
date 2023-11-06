@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "mlflow-watsonml"
+version = "0.1.0"
+description = ""
+authors = ["Dhruv Shah <dhruv.shah@ibm.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+mlflow = "^2.8.0"
+python-dotenv = "^1.0.0"
+ibm-watson-machine-learning = "^1.0.327"
+boto3 = "^1.28.78"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
