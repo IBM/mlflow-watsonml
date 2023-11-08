@@ -109,10 +109,13 @@ def delete_deployment(client: APIClient, name: str):
         software_spec_details = client.software_specifications.get_details(
             sw_spec_uid=software_spec_id
         )
-        client.software_specifications.delete(sw_spec_uid=software_spec_id)
-        LOGGER.info(
-            f"Deleted software specification {software_spec_details['metadata']['name']} with id {software_spec_id} from the repository."
-        )
+        software_spec_name = software_spec_details["metadata"]["name"]
+
+        if software_spec_name == f"{name}_sw_spec":
+            client.software_specifications.delete(sw_spec_uid=software_spec_id)
+            LOGGER.info(
+                f"Deleted software specification {software_spec_name} with id {software_spec_id} from the repository."
+            )
 
     except Exception as e:
         LOGGER.exception(e)
