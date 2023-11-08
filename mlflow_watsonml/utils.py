@@ -289,7 +289,7 @@ def refine_conda_yaml(conda_yaml: str) -> str:
 # TODO: implement logic to make sure the environment variables are set
 def get_mlflow_config() -> Dict:
     return {
-        "MLFLOW_TRACKING_URI": os.environ.get("MLFLOW_TRACKING_URI"),
+        # "MLFLOW_TRACKING_URI": os.environ.get("MLFLOW_TRACKING_URI", ""),
         "MLFLOW_S3_ENDPOINT_URL": os.environ.get("MLFLOW_S3_ENDPOINT_URL"),
         "AWS_SECRET_ACCESS_KEY": os.environ.get("AWS_SECRET_ACCESS_KEY"),
         "AWS_ACCESS_KEY_ID": os.environ.get("AWS_ACCESS_KEY_ID"),

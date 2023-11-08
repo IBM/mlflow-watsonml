@@ -151,6 +151,7 @@ def store_or_update_artifact(
     flavor: str,
     software_spec_id: str,
     artifact_id: Optional[str] = None,
+    environment_variables: Optional[Dict] = None,
 ) -> Tuple[str, str]:
     if flavor == "sklearn":
         artifact_id, revision_id = store_sklearn_artifact(
@@ -168,6 +169,16 @@ def store_or_update_artifact(
             artifact_name=artifact_name,
             software_spec_id=software_spec_id,
             artifact_id=artifact_id,
+        )
+
+    elif flavor == "watson_nlp":
+        artifact_id, revision_id = store_watson_nlp_artifact(
+            client=client,
+            model_uri=model_uri,
+            artifact_name=artifact_name,
+            software_spec_id=software_spec_id,
+            artifact_id=artifact_id,
+            config=environment_variables,
         )
 
     else:

@@ -279,3 +279,78 @@ def store_sklearn_artifact(
     )
 
     return (model_id, rev_id)
+
+
+def store_watson_nlp_artifact(
+    client: APIClient,
+    model_uri: str,
+    artifact_name: str,
+    software_spec_id: str,
+    artifact_id: Optional[str] = None,
+    config: Optional[Dict] = None,
+) -> Tuple[str, str]:
+    """store watson nlp artifact in WML
+
+    Parameters
+    ----------
+    client : APIClient
+        WML client
+    model_uri : str
+        model URI
+    artifact_name : str
+        name of the artifact
+    software_spec_id : str
+        id of software specification
+    artifact_id : Optional[str], optional
+        artifact id of the stored model, by default None
+
+    Returns
+    -------
+    Tuple[str, str]
+        model id, revision id
+    """
+
+    # the args have to be passed as default value in the scorer
+    def deployable_watson_nlp_scorer(artifact_uri=model_uri, config=config):
+        import os
+        import tempfile
+
+        import mlflow
+        import watson_nlp  # type: ignore
+
+        for key, val in config.items():  # type: ignore
+            os.environ[key] = val
+
+        def score(payload: dict):
+            artifact_dir = os.path.join(tempfile.gettempdir(), "artifacts")
+
+            # `download_artifacts` returns the local path if it's already been downloaded
+            artifact_file = mlflow.artifacts.download_artifacts(
+                artifact_uri=artifact_uri, dst_path=artifact_dir
+            )
+
+            model = watson_nlp.load(artifact_file)
+
+            scoring_output = {"predictions": []}
+
+            for data in payload["input_data"]:
+                values = data.get("values")
+                # fields = data.get("fields")
+                prediction_json_list = model.run_batch(values)
+                print(prediction_json_list)
+
+                scoring_output["predictions"].append({"values": prediction_json_list})
+
+            return scoring_output
+
+        return score
+
+    function_id, rev_id = store_or_update_function(
+        client=client,
+        deployable_function=deployable_watson_nlp_scorer,
+        function_name=artifact_name,
+        software_spec_uid=software_spec_id,
+        function_id=artifact_id,
+    )
+
+    return (function_id, rev_id)
