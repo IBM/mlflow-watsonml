@@ -18,6 +18,7 @@ def deploy(
     revision_id: str,
     batch: bool = False,
     environment_variables: Optional[Dict] = None,
+    hardware_spec_id: Optional[str] = None,
 ) -> Dict:
     """Create a new WML deployment
 
@@ -46,7 +47,11 @@ def deploy(
             client.deployments.ConfigurationMetaNames.NAME: name,
             client.deployments.ConfigurationMetaNames.BATCH: {},
             client.deployments.ConfigurationMetaNames.CUSTOM: environment_variables,
-            client.deployments.ConfigurationMetaNames.HARDWARE_SPEC: {},
+            client.deployments.ConfigurationMetaNames.HARDWARE_SPEC: {
+                "id": hardware_spec_id
+            }
+            if hardware_spec_id is not None
+            else {},
             client.deployments.ConfigurationMetaNames.ASSET: {
                 "id": artifact_id,
                 "rev": revision_id,
@@ -56,6 +61,11 @@ def deploy(
         deployment_props = {
             client.deployments.ConfigurationMetaNames.NAME: name,
             client.deployments.ConfigurationMetaNames.CUSTOM: environment_variables,
+            client.deployments.ConfigurationMetaNames.HARDWARE_SPEC: {
+                "id": hardware_spec_id
+            }
+            if hardware_spec_id is not None
+            else {},
             client.deployments.ConfigurationMetaNames.ONLINE: {},
             client.deployments.ConfigurationMetaNames.ASSET: {
                 "id": artifact_id,
