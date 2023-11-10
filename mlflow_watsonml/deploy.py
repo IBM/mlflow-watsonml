@@ -142,6 +142,7 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
             - "conda_yaml" : filepath of conda.yaml file
             - "custom_packages": a list of str - zip file paths of the packages
             - "rewrite_software_spec": bool whether to rewrite the software spec
+            - "hardware_spec_name" : name of the hardware specification to use (Default: XS)
         endpoint : str
             deployment space name
 
@@ -205,6 +206,19 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         batch = config.get("batch", False)
         environment_variables = get_mlflow_config()
 
+        hardware_spec_name = config.get("hardware_spec_name")
+        if hardware_spec_name is not None:
+            hardware_spec_id = client.hardware_specifications.get_id_by_name(
+                hardware_spec_name
+            )
+            if hardware_spec_id == "Not Found":
+                LOGGER.warn(
+                    f"Hardware Specification - {hardware_spec_name} not found. Using default."
+                )
+                hardware_spec_id = None
+        else:
+            hardware_spec_id = None
+
         deployment_details = deploy(
             client=client,
             name=name,
@@ -212,6 +226,7 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
             revision_id=revision_id,
             batch=batch,
             environment_variables=environment_variables,
+            hardware_spec_id=hardware_spec_id,
         )
 
         return deployment_details
