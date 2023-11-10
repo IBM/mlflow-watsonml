@@ -336,10 +336,10 @@ def store_watson_nlp_artifact(
             for data in payload["input_data"]:
                 values = data.get("values")
                 # fields = data.get("fields")
-                prediction_json_list = model.run_batch(values)
-                print(prediction_json_list)
+                predictions = model.run_batch(values)
+                predictions = [prediction.to_dict() for prediction in predictions]
 
-                scoring_output["predictions"].append({"values": prediction_json_list})
+                scoring_output["predictions"].append({"values": predictions})
 
             return scoring_output
 
