@@ -194,6 +194,7 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
             )
 
         artifact_name = f"{name}_v1"
+        environment_variables = get_mlflow_config()
 
         artifact_id, revision_id = store_or_update_artifact(
             client=client,
@@ -201,10 +202,10 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
             artifact_name=artifact_name,
             flavor=flavor,
             software_spec_id=software_spec_id,
+            environment_variables=environment_variables,
         )
 
         batch = config.get("batch", False)
-        environment_variables = get_mlflow_config()
 
         hardware_spec_name = config.get("hardware_spec_name")
         if hardware_spec_name is not None:
@@ -309,13 +310,14 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
                 conda_yaml=conda_yaml,
                 rewrite=True,
             )
-
+        environment_variables = get_mlflow_config()
         artifact_id, revision_id = store_or_update_artifact(
             client=client,
             model_uri=model_uri,
             artifact_name=new_artifact_name,
             flavor=flavor,
             software_spec_id=software_spec_id,
+            environment_variables=environment_variables,
         )
 
         deployment_details = update_deployment(
@@ -425,10 +427,10 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
             client.deployments.ScoringMetaNames.INPUT_DATA: [{"values": inputs}]
         }
 
-        if "custom" in deployment_details["entity"]["asset"].keys():
+        if "custom" in deployment_details["entity"].keys():
             scoring_payload[
                 client.deployments.ScoringMetaNames.ENVIRONMENT_VARIABLES
-            ] = deployment_details["entity"]["asset"]["custom"]
+            ] = deployment_details["entity"]["custom"]
 
         deployment_id = client.deployments.get_id(deployment_details=deployment_details)
 
