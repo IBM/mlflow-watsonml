@@ -20,6 +20,7 @@ setup(
     extras_require={
         "dev": ["ipython", "black", "pytest", "build", "wheel", "twine", "pytest-cov"],
         "onnx": ["onnx", "onnxruntime"],
+        "docs": ["mkdocs", "mkdocstrings-python", "mkdocs-material"],
     },
     entry_points={"mlflow.deployments": "watsonml=mlflow_watsonml.deploy"},
     python_requires=">=3.9",

@@ -1,5 +1,4 @@
 import json
-import logging
 import os
 from typing import Dict, Optional
 
@@ -7,7 +6,7 @@ from dotenv import load_dotenv
 from mlflow import MlflowException
 from mlflow.protos.databricks_pb2 import INVALID_PARAMETER_VALUE
 
-LOGGER = logging.getLogger(__name__)
+from mlflow_watsonml.logging import LOGGER
 
 WML_CREDENTIALS = "wml_credentials"
 WML_CREDENTIALS_FILE = "wml_credentials_file"
