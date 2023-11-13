@@ -38,10 +38,9 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         environment variables.
 
         Refer to the following links for setting up the credentials -
-        1. Cloud Pak for Data as a Service -
-        https://ibm.github.io/watson-machine-learning-sdk/setup_cloud.html#authentication
-        2. Cloud Pak for Data -
-        https://ibm.github.io/watson-machine-learning-sdk/setup_cpd.html#authentication
+
+        1. [Cloud Pak for Data as a Service](https://ibm.github.io/watson-machine-learning-sdk/setup_cloud.html#authentication)
+        2. [Cloud Pak for Data](https://ibm.github.io/watson-machine-learning-sdk/setup_cpd.html#authentication)
 
         Parameters
         ----------
