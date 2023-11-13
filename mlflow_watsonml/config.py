@@ -1,5 +1,4 @@
 import json
-import logging
 import os
 from typing import Dict, Optional
 
@@ -7,8 +6,7 @@ from dotenv import load_dotenv
 from mlflow import MlflowException
 from mlflow.protos.databricks_pb2 import INVALID_PARAMETER_VALUE
 
-LOGGER = logging.getLogger(__name__)
-LOGGER.setLevel(logging.INFO)
+from mlflow_watsonml.logging import LOGGER
 
 WML_CREDENTIALS = "wml_credentials"
 WML_CREDENTIALS_FILE = "wml_credentials_file"
@@ -24,8 +22,17 @@ VERSION = "version"
 
 class Config(dict):
     def __init__(self, config: Optional[Dict[str, str]] = None):
-        """
-        Initializes constants from input `config`, `.env` file or environment variables
+        """Initializes constants from input `config`, `.env` file or environment variables
+
+        Parameters
+        ----------
+        config : Optional[Dict[str, str]], optional
+            wml credentials, by default None
+
+        Raises
+        ------
+        MlflowException
+            missing credentials
         """
         super().__init__()
 

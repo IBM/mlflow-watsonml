@@ -18,20 +18,20 @@ def store_or_update_model(
     software_spec_uid: str,
     model_id: Optional[str] = None,
 ) -> Tuple[str, str]:
-    """Store model_object in a WML repository
+    """Store or update a model object in a WML repository
 
     Parameters
     ----------
     client : APIClient
         WML client
     model_object : Any
-        artifact object
+        model object
     model_name : str
         name of the model
     model_type : str
         type of model
     software_spec_uid : str
-        uid of software specification
+        UID of software specification
     model_id : str, optional
         asset id of the model to be updated
         by default None
@@ -98,7 +98,7 @@ def store_or_update_function(
     software_spec_uid: str,
     function_id: Optional[str] = None,
 ) -> Tuple[str, str]:
-    """Store or update function in WML repository
+    """Store or update a python function in WML repository
 
     Parameters
     ----------

@@ -6,11 +6,7 @@ import pandas as pd
 from ibm_watson_machine_learning.client import APIClient
 from mlflow.deployments import BaseDeploymentClient
 from mlflow.exceptions import MlflowException
-from mlflow.protos.databricks_pb2 import (
-    ENDPOINT_NOT_FOUND,
-    INVALID_PARAMETER_VALUE,
-    NOT_IMPLEMENTED,
-)
+from mlflow.protos.databricks_pb2 import ENDPOINT_NOT_FOUND, INVALID_PARAMETER_VALUE
 
 from mlflow_watsonml.config import Config
 from mlflow_watsonml.logging import LOGGER
@@ -31,7 +27,6 @@ def target_help():
 
 
 def run_local(name, model_uri, flavor=None, config=None):
-    # TODO: implement
     raise MlflowException("mlflow-watsonml does not currently support run_local.")
 
 
@@ -42,12 +37,17 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
         the plugin will try to search for WML credentials in `.env` file or the
         environment variables.
 
+        Refer to the following links for setting up the credentials -
+
+        1. [Cloud Pak for Data as a Service](https://ibm.github.io/watson-machine-learning-sdk/setup_cloud.html#authentication)
+        2. [Cloud Pak for Data](https://ibm.github.io/watson-machine-learning-sdk/setup_cpd.html#authentication)
+
         Parameters
         ----------
         target_uri : str, optional
-            target uri for mlflow deployment, by default "watsonml"
+            Target URI for mlflow deployment, by default "watsonml"
         config : Optional[Dict], optional
-            wml credentials, by default None
+            WML Credentials, by default None
         """
         super().__init__(target_uri)
 

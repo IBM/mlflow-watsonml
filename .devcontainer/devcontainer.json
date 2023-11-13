@@ -24,7 +24,9 @@
 				"ms-python.isort",
 				"visualstudioexptteam.vscodeintellicode",
 				"visualstudioexptteam.intellicode-api-usage-examples",
-				"VisualStudioExptTeam.vscodeintellicode"
+				"VisualStudioExptTeam.vscodeintellicode",
+				"redhat.vscode-yaml",
+				"njpwerner.autodocstring"
 			],
 			"settings": {
 				"terminal.integrated.shell.linux": "bash",
@@ -44,12 +46,23 @@
 				"isort.args": [
 					"--profile",
 					"black"
-				]
+				],
+				"yaml.schemas": {
+					"https://squidfunk.github.io/mkdocs-material/schema.json": "mkdocs.yml"
+				},
+				"yaml.customTags": [
+					"!ENV scalar",
+					"!ENV sequence",
+					"tag:yaml.org,2002:python/name:material.extensions.emoji.to_svg",
+					"tag:yaml.org,2002:python/name:material.extensions.emoji.twemoji",
+					"tag:yaml.org,2002:python/name:pymdownx.superfences.fence_code_format"
+				],
+				"autoDocstring.docstringFormat": "numpy"
 			}
 		}
 	},
 	// Use 'postCreateCommand' to run commands after the container is created.
-	"postCreateCommand": "pip install --upgrade pip; pip install --user -r requirements.txt; pip install -e '.[dev]'"
+	"postCreateCommand": "pip install --upgrade pip; pip install --user -r requirements.txt; pip install -e '.[dev, docs]'"
 	// "containerEnv": {},
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	// "features": {},
