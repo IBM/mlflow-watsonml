@@ -10,8 +10,10 @@ theme:
     - navigation.instant
     - navigation.instant.progress
     - navigation.instant.prefetch
-    - navigation.sections
+    - navigation.tabs
+    - navigation.tabs.sticky
     - navigation.footer
+    - content.code.copy
   font:
     text: IBM Plex Sans
     code: IBM Plex Mono
@@ -58,3 +60,18 @@ extra:
   social:
     - icon: fontawesome/solid/paper-plane
       link: mailto:dhruv.shah@ibm.com
+
+markdown_extensions:
+  - toc:
+      permalink: true
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: install.md
+      - Set Up Credentials: credentials.md
+  - User Guide: user_guide.md
+  - API Reference: api_reference.md
