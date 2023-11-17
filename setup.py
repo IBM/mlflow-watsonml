@@ -7,8 +7,11 @@ with open("README.md", "r") as fh:
 with open("requirements.txt", "r") as fh:
     install_requires = fh.readlines()
 
+exec(open("mlflow_watsonml/_version.py").read())
+
 setup(
     name="mlflow-watsonml",
+    version=__version__,  # type: ignore
     description="WatsonML MLflow deployment plugin",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -24,6 +27,6 @@ setup(
     },
     entry_points={"mlflow.deployments": "watsonml=mlflow_watsonml.deploy"},
     python_requires=">=3.9",
-    use_scm_version=True,
-    setup_requires=["setuptools_scm"],
+    # use_scm_version=True,
+    # setup_requires=["setuptools_scm"],
 )
