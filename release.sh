@@ -13,7 +13,7 @@ if ! git diff-index --quiet HEAD --; then echo "can't create release, you have u
 if git status --porcelain 2>/dev/null | egrep "^ M|??"; then echo "Can't create release, you have uncommitted or untracked files"; exit; fi
 
 # make sure this tag is in our setup.py
-if ! grep version\=\"$VERSION\" setup.py; then "$VERSION does not match that listed in setup.py"; exit ; fi
+if ! grep __version__\=\"$VERSION\" mlflow_watsonml/_version.py; then "$VERSION does not match that listed in setup.py"; exit ; fi
 
 echo creating mlflow_watsonml release $VERSION
 echo "# THIS IS AN AUTOMATICALLY GENERATED FILE" > mlflow_watsonml/__init__.py
