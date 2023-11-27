@@ -1,1 +1,4 @@
-from mlflow_watsonml.deploy import WatsonMLDeploymentClient
+# THIS IS AN AUTOMATICALLY GENERATED FILE
+# DO NOT EDIT IT SINCE YOUR CHANGES WILL
+# BE LOST
+__version__ = '0.11.2'
