@@ -207,7 +207,7 @@ class WatsonMLDeploymentClient(BaseDeploymentClient):
 
         batch = config.get("batch", False)
 
-        hardware_spec_name = config.get("hardware_spec_name")
+        hardware_spec_name = config.get("hardware_spec_name", "XS")
         if hardware_spec_name is not None:
             hardware_spec_id = client.hardware_specifications.get_id_by_name(
                 hardware_spec_name
