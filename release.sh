@@ -9,6 +9,13 @@ if [ -z $VERSION ]; then
 fi
 
 git checkout mlflow_watsonml/__init__.py
+current_branch=$(git symbolic-ref --short HEAD 2>/dev/null)
+
+if [ "$current_branch" != "main" ]; then
+    echo "Error: Branch must be 'main'. Current branch is '$current_branch'."
+    exit 1
+fi
+
 if ! git diff-index --quiet HEAD --; then echo "can't create release, you have uncommitted files"; exit; fi
 if git status --porcelain 2>/dev/null | egrep "^ M|??"; then echo "Can't create release, you have uncommitted or untracked files"; exit; fi
 
